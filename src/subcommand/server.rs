@@ -113,6 +113,37 @@ impl query_use_case::get_chart::HasGetChart for AppState {
     }
 }
 
+impl query_use_case::list_charts::HasListCharts for AppState {
+    type ListCharts = Self;
+    fn list_charts(&self) -> Self::ListCharts {
+        self.clone()
+    }
+}
+
+#[axum::async_trait]
+impl query_use_case::list_charts::ListCharts for AppState {
+    async fn execute(
+        &self,
+        _: query_use_case::list_charts::Input,
+    ) -> Result<query_use_case::list_charts::Output, query_use_case::list_charts::Error> {
+        let data = self.data.lock().await;
+        Ok(query_use_case::list_charts::Output(
+            data.iter()
+                .map(|chart| query_use_case::list_charts::Chart {
+                    created_at: chart
+                        .created_at
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .expect("FIXME")
+                        .as_secs()
+                        .to_string(),
+                    id: chart.id.clone(),
+                    title: chart.title.clone(),
+                })
+                .collect(),
+        ))
+    }
+}
+
 #[derive(Clone)]
 struct Chart {
     created_at: SystemTime,
