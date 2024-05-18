@@ -222,10 +222,8 @@ name = "date-line-charts"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum",
  "clap",
- "serde",
- "thiserror",
+ "server",
  "tokio",
 ]
 
@@ -588,6 +586,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "serde",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
