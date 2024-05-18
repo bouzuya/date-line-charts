@@ -1,6 +1,7 @@
 mod create_chart;
 mod show_chart;
 mod show_root;
+mod update_chart;
 
 use axum::Router;
 
@@ -11,4 +12,5 @@ pub fn router() -> Router<AppState> {
         .merge(create_chart::router())
         .merge(show_chart::router())
         .merge(show_root::router())
+        .merge(update_chart::router())
 }

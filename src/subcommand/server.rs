@@ -35,6 +35,29 @@ impl command_use_case::create_chart::HasCreateChart for AppState {
     }
 }
 
+impl command_use_case::update_chart::HasUpdateChart for AppState {
+    type UpdateChart = Self;
+    fn update_chart(&self) -> Self::UpdateChart {
+        self.clone()
+    }
+}
+
+#[axum::async_trait]
+impl command_use_case::update_chart::UpdateChart for AppState {
+    async fn execute(
+        &self,
+        input: command_use_case::update_chart::Input,
+    ) -> Result<command_use_case::update_chart::Output, command_use_case::update_chart::Error> {
+        let mut data = self.data.lock().await;
+        let chart = data
+            .iter_mut()
+            .find(|chart| chart.id == input.chart_id)
+            .ok_or(command_use_case::update_chart::Error)?;
+        chart.title = input.title;
+        Ok(command_use_case::update_chart::Output)
+    }
+}
+
 #[axum::async_trait]
 impl query_use_case::show_chart::ShowChart for AppState {
     async fn execute(
