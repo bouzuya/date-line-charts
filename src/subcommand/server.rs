@@ -2,7 +2,7 @@ use std::{sync::Arc, time::SystemTime};
 
 use tokio::sync::Mutex;
 
-use crate::command_use_case;
+use crate::{command_use_case, query_use_case};
 
 mod handler;
 
@@ -31,6 +31,38 @@ impl command_use_case::create_chart::CreateChart for AppState {
 impl command_use_case::create_chart::HasCreateChart for AppState {
     type CreateChart = Self;
     fn create_chart(&self) -> Self::CreateChart {
+        self.clone()
+    }
+}
+
+#[axum::async_trait]
+impl query_use_case::show_chart::ShowChart for AppState {
+    async fn execute(
+        &self,
+        input: query_use_case::show_chart::Input,
+    ) -> Result<query_use_case::show_chart::Output, query_use_case::show_chart::Error> {
+        let data = self.data.lock().await;
+        let chart = data
+            .iter()
+            .find(|chart| chart.id == input.chart_id)
+            .ok_or(query_use_case::show_chart::Error)?;
+        Ok(query_use_case::show_chart::Output {
+            // FIXME: This is not a good way to convert SystemTime to String.
+            created_at: chart
+                .created_at
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("FIXME")
+                .as_secs()
+                .to_string(),
+            id: chart.id.clone(),
+            title: chart.title.clone(),
+        })
+    }
+}
+
+impl query_use_case::show_chart::HasShowChart for AppState {
+    type ShowChart = Self;
+    fn show_chart(&self) -> Self::ShowChart {
         self.clone()
     }
 }

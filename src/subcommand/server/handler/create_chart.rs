@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, Json, Router};
 
 use crate::command_use_case::{self, create_chart::CreateChart, create_chart::HasCreateChart};
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(serde::Deserialize)]
 struct RequestBody {
     title: String,
 }
@@ -13,16 +13,29 @@ impl From<RequestBody> for command_use_case::create_chart::Input {
     }
 }
 
+#[derive(serde::Serialize)]
+struct ResponseBody {
+    chart_id: String,
+}
+
+impl From<command_use_case::create_chart::Output> for ResponseBody {
+    fn from(
+        command_use_case::create_chart::Output { id }: command_use_case::create_chart::Output,
+    ) -> Self {
+        Self { chart_id: id }
+    }
+}
+
 async fn handler<T: HasCreateChart>(
     State(state): State<T>,
     Json(body): Json<RequestBody>,
-) -> Result<String, StatusCode> {
+) -> Result<Json<ResponseBody>, StatusCode> {
     let use_case = state.create_chart();
-    let command_use_case::create_chart::Output { id } = use_case
+    let output = use_case
         .execute(command_use_case::create_chart::Input::from(body))
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(id)
+    Ok(Json(ResponseBody::from(output)))
 }
 
 pub fn router<T: Clone + HasCreateChart + Send + Sync + 'static>() -> Router<T> {

@@ -1,4 +1,5 @@
 mod command_use_case;
+mod query_use_case;
 mod subcommand;
 
 #[derive(clap::Parser)]
