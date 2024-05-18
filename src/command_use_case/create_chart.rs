@@ -3,7 +3,7 @@ pub struct Input {
 }
 
 pub struct Output {
-    pub id: String,
+    pub chart_id: String,
 }
 
 #[derive(Debug, thiserror::Error)]

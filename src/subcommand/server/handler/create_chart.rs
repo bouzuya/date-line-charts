@@ -20,9 +20,9 @@ struct ResponseBody {
 
 impl From<command_use_case::create_chart::Output> for ResponseBody {
     fn from(
-        command_use_case::create_chart::Output { id }: command_use_case::create_chart::Output,
+        command_use_case::create_chart::Output { chart_id }: command_use_case::create_chart::Output,
     ) -> Self {
-        Self { chart_id: id }
+        Self { chart_id }
     }
 }
 

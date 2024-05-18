@@ -24,7 +24,7 @@ impl command_use_case::create_chart::CreateChart for AppState {
             id: id.clone(),
             title: input.title,
         });
-        Ok(command_use_case::create_chart::Output { id })
+        Ok(command_use_case::create_chart::Output { chart_id: id })
     }
 }
 
