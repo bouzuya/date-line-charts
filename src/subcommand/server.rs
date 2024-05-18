@@ -35,6 +35,29 @@ impl command_use_case::create_chart::HasCreateChart for AppState {
     }
 }
 
+#[axum::async_trait]
+impl command_use_case::delete_chart::DeleteChart for AppState {
+    async fn execute(
+        &self,
+        input: command_use_case::delete_chart::Input,
+    ) -> Result<command_use_case::delete_chart::Output, command_use_case::delete_chart::Error> {
+        let mut data = self.data.lock().await;
+        let index = data
+            .iter()
+            .position(|chart| chart.id == input.chart_id)
+            .ok_or(command_use_case::delete_chart::Error)?;
+        data.remove(index);
+        Ok(command_use_case::delete_chart::Output)
+    }
+}
+
+impl command_use_case::delete_chart::HasDeleteChart for AppState {
+    type DeleteChart = Self;
+    fn delete_chart(&self) -> Self::DeleteChart {
+        self.clone()
+    }
+}
+
 impl command_use_case::update_chart::HasUpdateChart for AppState {
     type UpdateChart = Self;
     fn update_chart(&self) -> Self::UpdateChart {
