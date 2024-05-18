@@ -13,11 +13,11 @@ pub struct Output {
 pub struct Error;
 
 #[axum::async_trait]
-pub trait ShowChart: Send + Sync {
+pub trait GetChart: Send + Sync {
     async fn execute(&self, input: Input) -> Result<Output, Error>;
 }
 
-pub trait HasShowChart {
-    type ShowChart: ShowChart;
-    fn show_chart(&self) -> Self::ShowChart;
+pub trait HasGetChart {
+    type GetChart: GetChart;
+    fn get_chart(&self) -> Self::GetChart;
 }

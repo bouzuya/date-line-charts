@@ -82,17 +82,17 @@ impl command_use_case::update_chart::UpdateChart for AppState {
 }
 
 #[axum::async_trait]
-impl query_use_case::show_chart::ShowChart for AppState {
+impl query_use_case::get_chart::GetChart for AppState {
     async fn execute(
         &self,
-        input: query_use_case::show_chart::Input,
-    ) -> Result<query_use_case::show_chart::Output, query_use_case::show_chart::Error> {
+        input: query_use_case::get_chart::Input,
+    ) -> Result<query_use_case::get_chart::Output, query_use_case::get_chart::Error> {
         let data = self.data.lock().await;
         let chart = data
             .iter()
             .find(|chart| chart.id == input.chart_id)
-            .ok_or(query_use_case::show_chart::Error)?;
-        Ok(query_use_case::show_chart::Output {
+            .ok_or(query_use_case::get_chart::Error)?;
+        Ok(query_use_case::get_chart::Output {
             // FIXME: This is not a good way to convert SystemTime to String.
             created_at: chart
                 .created_at
@@ -106,9 +106,9 @@ impl query_use_case::show_chart::ShowChart for AppState {
     }
 }
 
-impl query_use_case::show_chart::HasShowChart for AppState {
-    type ShowChart = Self;
-    fn show_chart(&self) -> Self::ShowChart {
+impl query_use_case::get_chart::HasGetChart for AppState {
+    type GetChart = Self;
+    fn get_chart(&self) -> Self::GetChart {
         self.clone()
     }
 }
