@@ -1,25 +1,30 @@
-use std::time::SystemTime;
+use axum::{extract::State, http::StatusCode, Json, Router};
 
-use axum::{extract::State, Json, Router};
+use crate::command_use_case::{self, create_chart::CreateChart, create_chart::HasCreateChart};
 
-use crate::subcommand::server::{AppState, Chart};
-
-#[derive(serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 struct RequestBody {
     title: String,
 }
 
-async fn handler(State(state): State<AppState>, Json(body): Json<RequestBody>) -> String {
-    let mut data = state.data.lock().await;
-    let id = format!("{}", data.len() + 1);
-    data.push(Chart {
-        created_at: SystemTime::now(),
-        id: id.clone(),
-        title: body.title,
-    });
-    id
+impl From<RequestBody> for command_use_case::create_chart::Input {
+    fn from(RequestBody { title }: RequestBody) -> Self {
+        Self { title }
+    }
 }
 
-pub fn router() -> Router<AppState> {
-    Router::new().route("/charts", axum::routing::post(handler))
+async fn handler<T: HasCreateChart>(
+    State(state): State<T>,
+    Json(body): Json<RequestBody>,
+) -> Result<String, StatusCode> {
+    let use_case = state.create_chart();
+    let command_use_case::create_chart::Output { id } = use_case
+        .execute(command_use_case::create_chart::Input::from(body))
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(id)
+}
+
+pub fn router<T: Clone + HasCreateChart + Send + Sync + 'static>() -> Router<T> {
+    Router::new().route("/charts", axum::routing::post(handler::<T>))
 }
