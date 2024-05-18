@@ -1,7 +1,9 @@
+use axum::Router;
+
 async fn handler() -> &'static str {
     "OK"
 }
 
-pub fn router() -> axum::Router {
-    axum::Router::new().route("/", axum::routing::get(handler))
+pub fn router<T: Clone + Send + Sync + 'static>() -> Router<T> {
+    Router::new().route("/", axum::routing::get(handler))
 }

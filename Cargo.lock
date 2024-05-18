@@ -224,6 +224,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "serde",
  "tokio",
 ]
 
