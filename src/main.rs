@@ -1,3 +1,5 @@
+mod subcommand;
+
 #[derive(clap::Parser)]
 struct Args {
     #[clap(subcommand)]
@@ -9,11 +11,10 @@ enum Subcommand {
     Server,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::Parser>::parse();
     match args.subcommand {
-        Subcommand::Server => {
-            println!("FIXME: run server");
-        }
+        Subcommand::Server => subcommand::server::run().await,
     }
 }
