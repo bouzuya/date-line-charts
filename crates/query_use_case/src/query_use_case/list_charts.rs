@@ -2,6 +2,7 @@ pub struct Input;
 
 pub struct Output(pub Vec<Chart>);
 
+#[derive(Clone)]
 pub struct Chart {
     pub created_at: String,
     pub id: String,

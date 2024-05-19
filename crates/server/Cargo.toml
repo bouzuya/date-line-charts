@@ -14,5 +14,6 @@ tokio.workspace = true
 [dev-dependencies]
 anyhow = "1.0.86"
 command_use_case = { path = "../command_use_case", features = ["test-util"] }
+query_use_case = { path = "../query_use_case", features = ["test-util"] }
 serde_json = "1.0.117"
 tower = { version = "0.4.13", features = ["util"] }

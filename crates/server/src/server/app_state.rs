@@ -108,9 +108,8 @@ impl query_use_case::get_chart::GetChart for AppState {
 }
 
 impl query_use_case::get_chart::HasGetChart for AppState {
-    type GetChart = Self;
-    fn get_chart(&self) -> Self::GetChart {
-        self.clone()
+    fn get_chart(&self) -> Arc<dyn query_use_case::get_chart::GetChart + Send + Sync> {
+        Arc::new(self.clone())
     }
 }
 

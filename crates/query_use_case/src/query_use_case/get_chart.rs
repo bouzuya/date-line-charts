@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub struct Input {
     pub chart_id: String,
 }
@@ -12,12 +14,12 @@ pub struct Output {
 #[error("FIXME")]
 pub struct Error;
 
+#[cfg_attr(any(test, feature = "test-util"), mockall::automock)]
 #[async_trait::async_trait]
-pub trait GetChart: Send + Sync {
+pub trait GetChart {
     async fn execute(&self, input: Input) -> Result<Output, Error>;
 }
 
 pub trait HasGetChart {
-    type GetChart: GetChart;
-    fn get_chart(&self) -> Self::GetChart;
+    fn get_chart(&self) -> Arc<dyn GetChart + Send + Sync>;
 }

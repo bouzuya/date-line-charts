@@ -593,6 +593,7 @@ name = "query_use_case"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "mockall",
  "thiserror",
 ]
 
