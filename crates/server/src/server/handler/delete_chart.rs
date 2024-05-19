@@ -4,10 +4,7 @@ use axum::{
     Json, Router,
 };
 
-use command_use_case::{
-    self,
-    delete_chart::{DeleteChart, HasDeleteChart},
-};
+use command_use_case::{self, delete_chart::HasDeleteChart};
 
 #[derive(serde::Deserialize)]
 struct PathParameters {
@@ -20,7 +17,7 @@ impl From<PathParameters> for command_use_case::delete_chart::Input {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 struct ResponseBody {}
 
 async fn handler<T: HasDeleteChart>(
@@ -37,4 +34,84 @@ async fn handler<T: HasDeleteChart>(
 
 pub fn router<T: Clone + HasDeleteChart + Send + Sync + 'static>() -> Router<T> {
     Router::new().route("/charts/:chart_id", axum::routing::delete(handler::<T>))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use command_use_case::delete_chart::MockDeleteChart;
+
+    use crate::server::handler::tests::{send_request, ResponseExt as _};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_happy_path() -> anyhow::Result<()> {
+        let chart_id = "chart_id1".to_string();
+        let mocks = Mocks::with_happy_path_behavior(chart_id.clone());
+        let app = router().with_state(mocks.clone());
+        let request = build_request(&PathParameters { chart_id })?;
+        let response = send_request(app, request).await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.into_body_as_json::<ResponseBody>().await?,
+            ResponseBody {}
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_error() -> anyhow::Result<()> {
+        let chart_id = "chart_id1".to_string();
+        let mut mocks = Mocks::with_happy_path_behavior(chart_id.clone());
+        mocks.delete_chart = {
+            let mut mock = MockDeleteChart::new();
+            mock.expect_execute()
+                .return_once(|_| Err(command_use_case::delete_chart::Error));
+            Arc::new(mock)
+        };
+        let app = router().with_state(mocks.clone());
+        let request = build_request(&PathParameters { chart_id })?;
+        let response = send_request(app, request).await?;
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.into_body_string().await?, "");
+        Ok(())
+    }
+
+    #[derive(Clone)]
+    struct Mocks {
+        delete_chart: Arc<MockDeleteChart>,
+    }
+
+    impl Mocks {
+        fn with_happy_path_behavior(chart_id: String) -> Self {
+            let mut delete_chart = MockDeleteChart::new();
+            delete_chart.expect_execute().return_once(move |input| {
+                assert_eq!(input.chart_id, chart_id);
+                Ok(command_use_case::delete_chart::Output)
+            });
+            Self {
+                delete_chart: Arc::new(delete_chart),
+            }
+        }
+    }
+
+    impl command_use_case::delete_chart::HasDeleteChart for Mocks {
+        fn delete_chart(
+            &self,
+        ) -> Arc<dyn command_use_case::delete_chart::DeleteChart + Send + Sync> {
+            self.delete_chart.clone()
+        }
+    }
+
+    fn build_request(
+        path_parameters: &PathParameters,
+    ) -> anyhow::Result<axum::http::Request<axum::body::Body>> {
+        Ok(axum::http::Request::builder()
+            .method(axum::http::Method::DELETE)
+            .uri(format!("/charts/{}", path_parameters.chart_id))
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::empty())?)
+    }
 }
