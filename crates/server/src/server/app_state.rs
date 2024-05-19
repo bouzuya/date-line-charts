@@ -61,9 +61,8 @@ impl command_use_case::delete_chart::HasDeleteChart for AppState {
 }
 
 impl command_use_case::update_chart::HasUpdateChart for AppState {
-    type UpdateChart = Self;
-    fn update_chart(&self) -> Self::UpdateChart {
-        self.clone()
+    fn update_chart(&self) -> Arc<dyn command_use_case::update_chart::UpdateChart + Send + Sync> {
+        Arc::new(self.clone())
     }
 }
 
