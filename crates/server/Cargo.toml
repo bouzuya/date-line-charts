@@ -6,6 +6,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.86"
 axum = "0.7.5"
+command_use_case = { path = "../command_use_case" }
 serde = { version = "1.0.202", features = ["derive"] }
 thiserror = "1.0.61"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }

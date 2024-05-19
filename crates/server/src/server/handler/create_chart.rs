@@ -1,6 +1,6 @@
 use axum::{extract::State, http::StatusCode, Json, Router};
 
-use crate::command_use_case::{self, create_chart::CreateChart, create_chart::HasCreateChart};
+use command_use_case::{self, create_chart::CreateChart, create_chart::HasCreateChart};
 
 #[derive(serde::Deserialize)]
 struct RequestBody {

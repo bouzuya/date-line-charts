@@ -2,7 +2,7 @@ use std::{sync::Arc, time::SystemTime};
 
 use tokio::sync::Mutex;
 
-use crate::{command_use_case, query_use_case};
+use crate::query_use_case;
 
 mod handler;
 

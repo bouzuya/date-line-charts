@@ -7,11 +7,9 @@ mod update_chart;
 
 use axum::Router;
 
-use crate::{
-    command_use_case::{
-        create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
-    },
-    query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts},
+use crate::query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
+use command_use_case::{
+    create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
 };
 
 pub fn router<

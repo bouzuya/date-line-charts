@@ -1,0 +1,8 @@
+[package]
+name = "command_use_case"
+edition = "2021"
+publish = false
+
+[dependencies]
+async-trait = "0.1.80"
+thiserror = "1.0.61"

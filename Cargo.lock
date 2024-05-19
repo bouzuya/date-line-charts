@@ -218,6 +218,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b6a852b24ab71dffc585bcb46eaf7959d175cb865a7152e35b348d1b2960422"
 
 [[package]]
+name = "command_use_case"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "date-line-charts"
 version = "0.1.0"
 dependencies = [
@@ -594,6 +602,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "command_use_case",
  "serde",
  "thiserror",
  "tokio",

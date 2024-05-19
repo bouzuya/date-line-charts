@@ -8,7 +8,7 @@ pub struct Output;
 #[error("FIXME")]
 pub struct Error;
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 pub trait DeleteChart: Send + Sync {
     async fn execute(&self, input: Input) -> Result<Output, Error>;
 }
