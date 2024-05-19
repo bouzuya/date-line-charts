@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub struct Input;
 
 pub struct Output(pub Vec<Chart>);
@@ -13,12 +15,12 @@ pub struct Chart {
 #[error("FIXME")]
 pub struct Error;
 
+#[cfg_attr(any(test, feature = "test-util"), mockall::automock)]
 #[async_trait::async_trait]
-pub trait ListCharts: Send + Sync {
+pub trait ListCharts {
     async fn execute(&self, input: Input) -> Result<Output, Error>;
 }
 
 pub trait HasListCharts {
-    type ListCharts: ListCharts;
-    fn list_charts(&self) -> Self::ListCharts;
+    fn list_charts(&self) -> Arc<dyn ListCharts + Send + Sync>;
 }
