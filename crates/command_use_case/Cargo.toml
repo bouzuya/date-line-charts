@@ -5,6 +5,7 @@ publish = false
 
 [dependencies]
 async-trait.workspace = true
+domain = { path = "../domain" }
 mockall = { workspace = true, optional = true }
 thiserror.workspace = true
 
