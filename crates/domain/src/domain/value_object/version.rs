@@ -10,6 +10,10 @@ impl Version {
     pub fn new() -> Self {
         Self(1)
     }
+
+    pub fn next(&self) -> Result<Self, Error> {
+        self.0.checked_add(1).map(Self).ok_or(Error)
+    }
 }
 
 impl TryFrom<i64> for Version {
@@ -36,6 +40,15 @@ mod tests {
         assert!(Version::try_from(1_i64).is_ok());
         assert!(Version::try_from(i64::from(u32::MAX)).is_ok());
         assert!(Version::try_from(i64::from(u32::MAX) + 1).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_next() -> anyhow::Result<()> {
+        let version = Version::new();
+        assert_eq!(version.next()?, Version::try_from(2_i64)?);
+        let version = Version::try_from(i64::from(u32::MAX))?;
+        assert!(version.next().is_err());
         Ok(())
     }
 
