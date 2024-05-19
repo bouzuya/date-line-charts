@@ -6,6 +6,7 @@ publish = false
 [dependencies]
 axum = "0.7.5"
 command_use_case = { path = "../command_use_case" }
+domain = { path = "../domain" }
 query_use_case = { path = "../query_use_case" }
 serde = { version = "1.0.202", features = ["derive"] }
 thiserror.workspace = true

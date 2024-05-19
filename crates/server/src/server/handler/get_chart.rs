@@ -58,8 +58,9 @@ pub fn router<T: Clone + HasGetChart + Send + Sync + 'static>() -> Router<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::SystemTime};
+    use std::sync::Arc;
 
+    use domain::value_object::DateTime;
     use query_use_case::{get_chart::MockGetChart, list_charts::Chart};
 
     use crate::server::handler::tests::{send_request, ResponseExt as _};
@@ -136,13 +137,8 @@ mod tests {
     }
 
     fn build_chart() -> Chart {
-        let now = SystemTime::now();
         Chart {
-            created_at: now
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("FIXME")
-                .as_secs()
-                .to_string(),
+            created_at: DateTime::now().to_string(),
             id: "chart_id1".to_string(),
             title: "title1".to_string(),
         }

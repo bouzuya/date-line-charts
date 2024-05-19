@@ -781,6 +781,7 @@ dependencies = [
  "anyhow",
  "axum",
  "command_use_case",
+ "domain",
  "query_use_case",
  "serde",
  "serde_json",

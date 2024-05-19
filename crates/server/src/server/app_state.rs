@@ -1,5 +1,6 @@
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
+use domain::value_object::DateTime;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
@@ -24,7 +25,7 @@ impl command_use_case::create_chart::CreateChart for AppState {
         let mut data = self.data.lock().await;
         let id = format!("{}", data.len() + 1);
         data.push(Chart {
-            created_at: SystemTime::now(),
+            created_at: DateTime::now(),
             id: id.clone(),
             title: input.title,
         });
@@ -94,13 +95,7 @@ impl query_use_case::get_chart::GetChart for AppState {
             .find(|chart| chart.id == input.chart_id)
             .ok_or(query_use_case::get_chart::Error)?;
         Ok(query_use_case::get_chart::Output {
-            // FIXME: This is not a good way to convert SystemTime to String.
-            created_at: chart
-                .created_at
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("FIXME")
-                .as_secs()
-                .to_string(),
+            created_at: chart.created_at.to_string(),
             id: chart.id.clone(),
             title: chart.title.clone(),
         })
@@ -129,12 +124,7 @@ impl query_use_case::list_charts::ListCharts for AppState {
         Ok(query_use_case::list_charts::Output(
             data.iter()
                 .map(|chart| query_use_case::list_charts::Chart {
-                    created_at: chart
-                        .created_at
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .expect("FIXME")
-                        .as_secs()
-                        .to_string(),
+                    created_at: chart.created_at.to_string(),
                     id: chart.id.clone(),
                     title: chart.title.clone(),
                 })
@@ -145,7 +135,7 @@ impl query_use_case::list_charts::ListCharts for AppState {
 
 #[derive(Clone)]
 struct Chart {
-    created_at: SystemTime,
+    created_at: DateTime,
     id: String,
     title: String,
 }
