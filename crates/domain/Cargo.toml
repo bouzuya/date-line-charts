@@ -1,0 +1,11 @@
+[package]
+name = "domain"
+edition = "2021"
+publish = false
+
+[dependencies]
+chrono = "0.4.38"
+thiserror.workspace = true
+
+[dev-dependencies]
+anyhow = "1.0.86"
