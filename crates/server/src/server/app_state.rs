@@ -1,17 +1,22 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, str::FromStr as _, sync::Arc};
 
-use domain::value_object::DateTime;
+use domain::{
+    aggregate::{chart::Event, Chart},
+    value_object::{ChartId, DateTime},
+};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct AppState {
-    data: Arc<Mutex<Vec<Chart>>>,
+    command_data: Arc<Mutex<BTreeMap<ChartId, Vec<Event>>>>,
+    query_data: Arc<Mutex<Vec<ChartQueryData>>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(Mutex::new(Vec::new())),
+            command_data: Arc::new(Mutex::new(BTreeMap::new())),
+            query_data: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -22,14 +27,19 @@ impl command_use_case::create_chart::CreateChart for AppState {
         &self,
         input: command_use_case::create_chart::Input,
     ) -> Result<command_use_case::create_chart::Output, command_use_case::create_chart::Error> {
-        let mut data = self.data.lock().await;
-        let id = format!("{}", data.len() + 1);
-        data.push(Chart {
-            created_at: DateTime::now(),
-            id: id.clone(),
-            title: input.title,
+        let mut command_data = self.command_data.lock().await;
+        let mut query_data = self.query_data.lock().await;
+        let (state, events) =
+            Chart::create(input.title).map_err(|_| command_use_case::create_chart::Error)?;
+        command_data.insert(state.id(), events);
+        query_data.push(ChartQueryData {
+            created_at: state.created_at(),
+            id: state.id().to_string(),
+            title: state.title().to_string(),
         });
-        Ok(command_use_case::create_chart::Output { chart_id: id })
+        Ok(command_use_case::create_chart::Output {
+            chart_id: state.id().to_string(),
+        })
     }
 }
 
@@ -45,12 +55,25 @@ impl command_use_case::delete_chart::DeleteChart for AppState {
         &self,
         input: command_use_case::delete_chart::Input,
     ) -> Result<command_use_case::delete_chart::Output, command_use_case::delete_chart::Error> {
-        let mut data = self.data.lock().await;
-        let index = data
+        let mut command_data = self.command_data.lock().await;
+        let mut query_data = self.query_data.lock().await;
+        let stored_events = command_data
+            .get_mut(
+                &ChartId::from_str(&input.chart_id)
+                    .map_err(|_| command_use_case::delete_chart::Error)?,
+            )
+            .ok_or(command_use_case::delete_chart::Error)?;
+        let chart =
+            Chart::from_events(stored_events).map_err(|_| command_use_case::delete_chart::Error)?;
+        let (_, new_events) = chart
+            .delete()
+            .map_err(|_| command_use_case::delete_chart::Error)?;
+        stored_events.extend(new_events);
+        let index = query_data
             .iter()
             .position(|chart| chart.id == input.chart_id)
             .ok_or(command_use_case::delete_chart::Error)?;
-        data.remove(index);
+        query_data.remove(index);
         Ok(command_use_case::delete_chart::Output)
     }
 }
@@ -73,12 +96,25 @@ impl command_use_case::update_chart::UpdateChart for AppState {
         &self,
         input: command_use_case::update_chart::Input,
     ) -> Result<command_use_case::update_chart::Output, command_use_case::update_chart::Error> {
-        let mut data = self.data.lock().await;
-        let chart = data
+        let mut command_data = self.command_data.lock().await;
+        let mut query_data = self.query_data.lock().await;
+        let stored_events = command_data
+            .get_mut(
+                &ChartId::from_str(&input.chart_id)
+                    .map_err(|_| command_use_case::update_chart::Error)?,
+            )
+            .ok_or(command_use_case::update_chart::Error)?;
+        let chart =
+            Chart::from_events(stored_events).map_err(|_| command_use_case::update_chart::Error)?;
+        let (state, new_events) = chart
+            .update(input.title)
+            .map_err(|_| command_use_case::update_chart::Error)?;
+        stored_events.extend(new_events);
+        let chart = query_data
             .iter_mut()
             .find(|chart| chart.id == input.chart_id)
             .ok_or(command_use_case::update_chart::Error)?;
-        chart.title = input.title;
+        chart.title = state.title().to_string();
         Ok(command_use_case::update_chart::Output)
     }
 }
@@ -89,8 +125,8 @@ impl query_use_case::get_chart::GetChart for AppState {
         &self,
         input: query_use_case::get_chart::Input,
     ) -> Result<query_use_case::get_chart::Output, query_use_case::get_chart::Error> {
-        let data = self.data.lock().await;
-        let chart = data
+        let query_data = self.query_data.lock().await;
+        let chart = query_data
             .iter()
             .find(|chart| chart.id == input.chart_id)
             .ok_or(query_use_case::get_chart::Error)?;
@@ -120,9 +156,10 @@ impl query_use_case::list_charts::ListCharts for AppState {
         &self,
         _: query_use_case::list_charts::Input,
     ) -> Result<query_use_case::list_charts::Output, query_use_case::list_charts::Error> {
-        let data = self.data.lock().await;
+        let query_data = self.query_data.lock().await;
         Ok(query_use_case::list_charts::Output(
-            data.iter()
+            query_data
+                .iter()
                 .map(|chart| query_use_case::list_charts::Chart {
                     created_at: chart.created_at.to_string(),
                     id: chart.id.clone(),
@@ -134,7 +171,7 @@ impl query_use_case::list_charts::ListCharts for AppState {
 }
 
 #[derive(Clone)]
-struct Chart {
+struct ChartQueryData {
     created_at: DateTime,
     id: String,
     title: String,
