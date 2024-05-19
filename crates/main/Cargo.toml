@@ -7,4 +7,4 @@ edition = "2021"
 anyhow = "1.0.86"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 server = { path = "../server" }
-tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+tokio.workspace = true

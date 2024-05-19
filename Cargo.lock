@@ -608,7 +608,6 @@ dependencies = [
 name = "server"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "axum",
  "command_use_case",
  "query_use_case",
