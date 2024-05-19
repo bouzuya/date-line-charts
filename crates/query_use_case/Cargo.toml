@@ -1,5 +1,5 @@
 [package]
-name = "command_use_case"
+name = "query_use_case"
 edition = "2021"
 publish = false
 

@@ -2,8 +2,6 @@ use std::{sync::Arc, time::SystemTime};
 
 use tokio::sync::Mutex;
 
-use crate::query_use_case;
-
 mod handler;
 
 #[derive(Clone)]

@@ -4,7 +4,7 @@ use axum::{
     Json, Router,
 };
 
-use crate::query_use_case::{self, get_chart::GetChart, get_chart::HasGetChart};
+use query_use_case::{self, get_chart::GetChart, get_chart::HasGetChart};
 
 #[derive(serde::Deserialize)]
 struct PathParameters {

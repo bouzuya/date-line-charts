@@ -517,6 +517,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "query_use_case"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,6 +611,7 @@ dependencies = [
  "anyhow",
  "axum",
  "command_use_case",
+ "query_use_case",
  "serde",
  "thiserror",
  "tokio",
