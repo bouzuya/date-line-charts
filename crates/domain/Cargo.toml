@@ -9,4 +9,4 @@ thiserror.workspace = true
 uuid = { version = "1.8.0", features = ["v4"] }
 
 [dev-dependencies]
-anyhow = "1.0.86"
+anyhow.workspace = true
