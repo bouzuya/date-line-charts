@@ -1,8 +1,8 @@
 use axum::{extract::State, http::StatusCode, Json, Router};
 
-use command_use_case::{self, create_chart::CreateChart, create_chart::HasCreateChart};
+use command_use_case::{self, create_chart::HasCreateChart};
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 struct RequestBody {
     title: String,
 }
@@ -13,7 +13,7 @@ impl From<RequestBody> for command_use_case::create_chart::Input {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 struct ResponseBody {
     chart_id: String,
 }
@@ -40,4 +40,108 @@ async fn handler<T: HasCreateChart>(
 
 pub fn router<T: Clone + HasCreateChart + Send + Sync + 'static>() -> Router<T> {
     Router::new().route("/charts", axum::routing::post(handler::<T>))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use command_use_case::create_chart::MockCreateChart;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_happy_path() -> anyhow::Result<()> {
+        let title = "title1".to_string();
+        let chart_id = "chart_id1".to_string();
+        let mocks = Mocks::with_happy_path_behavior(title.clone(), chart_id.clone());
+        let app = router().with_state(mocks.clone());
+        let request = build_request(&RequestBody { title })?;
+        let response = send_request(app, request).await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.into_body_as_json::<ResponseBody>().await?,
+            ResponseBody { chart_id }
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_error() -> anyhow::Result<()> {
+        let title = "title1".to_string();
+        let chart_id = "chart_id1".to_string();
+        let mut mocks = Mocks::with_happy_path_behavior(title.clone(), chart_id.clone());
+        mocks.create_chart = {
+            let mut mock = MockCreateChart::new();
+            mock.expect_execute()
+                .return_once(|_| Err(command_use_case::create_chart::Error));
+            Arc::new(mock)
+        };
+        let app = router().with_state(mocks.clone());
+        let request = build_request(&RequestBody { title })?;
+        let response = send_request(app, request).await?;
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(response.into_body_string().await?, "");
+        Ok(())
+    }
+
+    #[derive(Clone)]
+    struct Mocks {
+        create_chart: Arc<MockCreateChart>,
+    }
+
+    impl Mocks {
+        fn with_happy_path_behavior(title: String, chart_id: String) -> Self {
+            let mut create_chart = MockCreateChart::new();
+            create_chart.expect_execute().return_once(move |input| {
+                assert_eq!(input.title, title);
+                Ok(command_use_case::create_chart::Output { chart_id })
+            });
+            Self {
+                create_chart: Arc::new(create_chart),
+            }
+        }
+    }
+
+    impl command_use_case::create_chart::HasCreateChart for Mocks {
+        fn create_chart(
+            &self,
+        ) -> Arc<dyn command_use_case::create_chart::CreateChart + Send + Sync> {
+            self.create_chart.clone()
+        }
+    }
+
+    fn build_request<T: serde::Serialize>(
+        request_body: &T,
+    ) -> anyhow::Result<axum::http::Request<axum::body::Body>> {
+        Ok(axum::http::Request::builder()
+            .method(axum::http::Method::POST)
+            .uri("/charts")
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(axum::body::Body::from(serde_json::to_string(request_body)?))?)
+    }
+
+    #[axum::async_trait]
+    trait ResponseExt {
+        async fn into_body_string(self) -> anyhow::Result<String>;
+        async fn into_body_as_json<T: serde::de::DeserializeOwned>(self) -> anyhow::Result<T>;
+    }
+
+    #[axum::async_trait]
+    impl ResponseExt for axum::http::Response<axum::body::Body> {
+        async fn into_body_string(self) -> anyhow::Result<String> {
+            let body = axum::body::to_bytes(self.into_body(), usize::MAX).await?;
+            Ok(String::from_utf8(body.to_vec())?)
+        }
+        async fn into_body_as_json<T: serde::de::DeserializeOwned>(self) -> anyhow::Result<T> {
+            Ok(serde_json::from_str(&self.into_body_string().await?)?)
+        }
+    }
+
+    async fn send_request(
+        app: axum::Router,
+        request: axum::http::Request<axum::body::Body>,
+    ) -> anyhow::Result<axum::response::Response<axum::body::Body>> {
+        Ok(tower::ServiceExt::oneshot(app, request).await?)
+    }
 }

@@ -5,4 +5,11 @@ publish = false
 
 [dependencies]
 async-trait.workspace = true
+mockall = { workspace = true, optional = true }
 thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+
+[features]
+test-util = ["dep:mockall"]

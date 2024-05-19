@@ -33,9 +33,8 @@ impl command_use_case::create_chart::CreateChart for AppState {
 }
 
 impl command_use_case::create_chart::HasCreateChart for AppState {
-    type CreateChart = Self;
-    fn create_chart(&self) -> Self::CreateChart {
-        self.clone()
+    fn create_chart(&self) -> Arc<dyn command_use_case::create_chart::CreateChart + Send + Sync> {
+        Arc::new(self.clone())
     }
 }
 
