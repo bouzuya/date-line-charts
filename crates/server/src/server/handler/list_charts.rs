@@ -59,8 +59,8 @@ pub fn router<T: Clone + HasListCharts + Send + Sync + 'static>() -> Router<T> {
 mod tests {
     use std::sync::Arc;
 
-    use domain::value_object::DateTime;
     use query_use_case::{list_charts::Chart, list_charts::MockListCharts};
+    use write_model::value_object::DateTime;
 
     use crate::server::handler::tests::{send_request, ResponseExt as _};
 

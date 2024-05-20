@@ -263,9 +263,9 @@ name = "command_use_case"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "domain",
  "mockall",
  "thiserror",
+ "write_model",
 ]
 
 [[package]]
@@ -282,16 +282,6 @@ dependencies = [
  "clap",
  "server",
  "tokio",
-]
-
-[[package]]
-name = "domain"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "thiserror",
- "uuid",
 ]
 
 [[package]]
@@ -794,13 +784,13 @@ dependencies = [
  "anyhow",
  "axum",
  "command_use_case",
- "domain",
  "query_use_case",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tower",
+ "write_model",
 ]
 
 [[package]]
@@ -1177,3 +1167,13 @@ name = "windows_x86_64_msvc"
 version = "0.52.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
+
+[[package]]
+name = "write_model"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "thiserror",
+ "uuid",
+]

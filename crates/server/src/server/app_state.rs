@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, str::FromStr as _, sync::Arc};
 
 use command_use_case::create_chart::{ChartRepository, HasChartRepository as _};
-use domain::{
+use tokio::sync::Mutex;
+use write_model::{
     aggregate::{chart::Event, Chart},
     value_object::{ChartId, DateTime, Version},
 };
-use tokio::sync::Mutex;
 
 struct ChartDatabase {
     command_data: Arc<Mutex<BTreeMap<ChartId, Vec<Event>>>>,

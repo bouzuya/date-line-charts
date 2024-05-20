@@ -60,8 +60,8 @@ pub fn router<T: Clone + HasGetChart + Send + Sync + 'static>() -> Router<T> {
 mod tests {
     use std::sync::Arc;
 
-    use domain::value_object::DateTime;
     use query_use_case::{get_chart::MockGetChart, list_charts::Chart};
+    use write_model::value_object::DateTime;
 
     use crate::server::handler::tests::{send_request, ResponseExt as _};
 

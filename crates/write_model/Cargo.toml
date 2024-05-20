@@ -1,5 +1,5 @@
 [package]
-name = "domain"
+name = "write_model"
 edition = "2021"
 publish = false
 

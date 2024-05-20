@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use domain::{
+use write_model::{
     aggregate::{chart::Event, Chart},
     value_object::{ChartId, Version},
 };
