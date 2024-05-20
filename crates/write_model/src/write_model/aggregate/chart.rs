@@ -3,7 +3,7 @@ pub mod event;
 use crate::value_object::{ChartId, DateTime, Version};
 
 pub use self::event::Event;
-use self::event::{Created, Deleted, Updated};
+use self::event::{Created, Deleted, EventData, Updated};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -34,12 +34,14 @@ impl Chart {
         let at = DateTime::now();
         let id = ChartId::generate();
         let version = Version::new();
-        let events = vec![Event::Created(Created {
+        let events = vec![Event {
             at,
+            data: EventData::Created(Created {
+                title: title.clone(),
+            }),
             id,
-            title: title.clone(),
             version,
-        })];
+        }];
         let state = Self {
             created_at: at,
             deleted_at: None,
@@ -53,12 +55,17 @@ impl Chart {
     pub fn from_events(events: &[Event]) -> Result<Self, Error> {
         let mut state = match events.first() {
             None => return Err(Error::CreatedNotFound),
-            Some(Event::Created(event)) => Self {
-                created_at: event.at,
+            Some(Event {
+                at,
+                data: EventData::Created(event),
+                id,
+                version,
+            }) => Self {
+                created_at: *at,
                 deleted_at: None,
-                id: event.id,
+                id: *id,
                 title: event.title.clone(),
-                version: event.version,
+                version: *version,
             },
             Some(_) => return Err(Error::CreatedNotFound),
         };
@@ -89,11 +96,12 @@ impl Chart {
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
         let at = DateTime::now();
         let version = self.version.next().map_err(|_| Error::OverflowVersion)?;
-        let events = vec![Event::Deleted(Deleted {
+        let events = vec![Event {
             at,
+            data: EventData::Deleted(Deleted {}),
             id: self.id,
             version,
-        })];
+        }];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))
@@ -117,12 +125,14 @@ impl Chart {
         }
         let at = DateTime::now();
         let version = self.version.next().map_err(|_| Error::OverflowVersion)?;
-        let events = vec![Event::Updated(Updated {
+        let events = vec![Event {
             at,
+            data: EventData::Updated(Updated {
+                title: title.clone(),
+            }),
             id: self.id,
-            title,
             version,
-        })];
+        }];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))
@@ -134,15 +144,17 @@ impl Chart {
 
     fn apply_events(&mut self, events: &[Event]) -> Result<(), Error> {
         for event in events {
-            match event {
-                Event::Created(_) => return Err(Error::MultipleCreated),
-                Event::Updated(event) => {
-                    self.title = event.title.clone();
-                    self.version = event.version;
+            let at = event.at;
+            let version = event.version;
+            match &event.data {
+                EventData::Created(_) => return Err(Error::MultipleCreated),
+                EventData::Updated(e) => {
+                    self.title = e.title.clone();
+                    self.version = version;
                 }
-                Event::Deleted(event) => {
-                    self.deleted_at = Some(event.at);
-                    self.version = event.version;
+                EventData::Deleted(_) => {
+                    self.deleted_at = Some(at);
+                    self.version = version;
                 }
             }
         }

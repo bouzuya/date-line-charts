@@ -1,30 +1,30 @@
 use crate::value_object::{ChartId, DateTime, Version};
 
+pub type Event = BaseEvent<ChartId, EventData>;
+
 #[derive(Clone, Debug)]
-pub struct Created {
+pub struct BaseEvent<I, D> {
     pub at: DateTime,
-    pub id: ChartId,
-    pub title: String,
+    pub data: D,
+    pub id: I,
     pub version: Version,
 }
 
 #[derive(Clone, Debug)]
-pub struct Deleted {
-    pub at: DateTime,
-    pub id: ChartId,
-    pub version: Version,
+pub struct Created {
+    pub title: String,
 }
+
+#[derive(Clone, Debug)]
+pub struct Deleted {}
 
 #[derive(Clone, Debug)]
 pub struct Updated {
-    pub at: DateTime,
-    pub id: ChartId,
     pub title: String,
-    pub version: Version,
 }
 
 #[derive(Clone, Debug)]
-pub enum Event {
+pub enum EventData {
     Created(Created),
     Deleted(Deleted),
     Updated(Updated),

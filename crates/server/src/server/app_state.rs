@@ -78,11 +78,7 @@ impl ChartRepository for ChartDatabase {
         }
         match current {
             None => {
-                let id = match &events[0] {
-                    Event::Created(event) => event.id,
-                    Event::Deleted(event) => event.id,
-                    Event::Updated(event) => event.id,
-                };
+                let id = events[0].id;
                 command_data.insert(id, events.to_vec());
 
                 let state = Chart::from_events(events)?;
@@ -93,11 +89,7 @@ impl ChartRepository for ChartDatabase {
                 });
             }
             Some(_version) => {
-                let id = match &events[0] {
-                    Event::Created(event) => event.id,
-                    Event::Deleted(event) => event.id,
-                    Event::Updated(event) => event.id,
-                };
+                let id = events[0].id;
                 let stored_events = command_data.get_mut(&id).ok_or("not found")?;
                 // TODO: check version
                 stored_events.extend(events.to_vec());
