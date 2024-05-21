@@ -5,16 +5,16 @@ publish = false
 
 [dependencies]
 axum = "0.7.5"
-command_use_case = { path = "../command_use_case" }
-write_model = { path = "../write_model" }
-query_use_case = { path = "../query_use_case" }
+command_use_case.workspace = true
+query_use_case.workspace = true
 serde = { version = "1.0.202", features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
+write_model.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
-command_use_case = { path = "../command_use_case", features = ["test-util"] }
-query_use_case = { path = "../query_use_case", features = ["test-util"] }
+command_use_case = { workspace = true, features = ["test-util"] }
+query_use_case = { workspace = true, features = ["test-util"] }
 serde_json = "1.0.117"
 tower = { version = "0.4.13", features = ["util"] }

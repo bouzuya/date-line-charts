@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 clap = { version = "4.5.4", features = ["derive", "env"] }
-server = { path = "../server" }
+server.workspace = true
 tokio.workspace = true

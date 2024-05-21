@@ -7,7 +7,7 @@ publish = false
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 thiserror.workspace = true
-write_model = { path = "../write_model" }
+write_model.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
