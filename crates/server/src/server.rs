@@ -1,7 +1,9 @@
-mod app_state;
 mod handler;
 
-use self::app_state::AppState;
+use command_use_case::{
+    create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
+};
+use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -11,11 +13,25 @@ pub enum Error {
     Serve(#[source] std::io::Error),
 }
 
-pub async fn run() -> Result<(), Error> {
-    let router = handler::router().with_state(AppState::new());
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+pub async fn run<
+    T: Clone
+        + HasCreateChart
+        + HasDeleteChart
+        + HasGetChart
+        + HasListCharts
+        + HasUpdateChart
+        + Send
+        + Sync
+        + 'static,
+>(
+    app: T,
+) -> Result<(), Error> {
+    let router = handler::router().with_state(app);
+    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .map_err(Error::Bind)?;
-    axum::serve(listener, router).await.map_err(Error::Serve)?;
+    axum::serve(tcp_listener, router)
+        .await
+        .map_err(Error::Serve)?;
     Ok(())
 }

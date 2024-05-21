@@ -53,7 +53,7 @@ impl ChartDatabase {
     }
 }
 
-#[axum::async_trait]
+#[async_trait::async_trait]
 impl ChartRepository for ChartDatabase {
     async fn find(
         &self,
@@ -116,11 +116,12 @@ impl ChartRepository for ChartDatabase {
 }
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct InMemoryApp {
     chart_database: Arc<ChartDatabase>,
 }
 
-impl AppState {
+impl InMemoryApp {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             chart_database: Arc::new(ChartDatabase::new()),
@@ -128,14 +129,14 @@ impl AppState {
     }
 }
 
-impl command_use_case::create_chart::HasChartRepository for AppState {
+impl command_use_case::create_chart::HasChartRepository for InMemoryApp {
     fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
         self.chart_database.clone()
     }
 }
 
-#[axum::async_trait]
-impl command_use_case::create_chart::CreateChart for AppState {
+#[async_trait::async_trait]
+impl command_use_case::create_chart::CreateChart for InMemoryApp {
     async fn execute(
         &self,
         input: command_use_case::create_chart::Input,
@@ -152,14 +153,14 @@ impl command_use_case::create_chart::CreateChart for AppState {
     }
 }
 
-impl command_use_case::create_chart::HasCreateChart for AppState {
+impl command_use_case::create_chart::HasCreateChart for InMemoryApp {
     fn create_chart(&self) -> Arc<dyn command_use_case::create_chart::CreateChart + Send + Sync> {
         Arc::new(self.clone())
     }
 }
 
-#[axum::async_trait]
-impl command_use_case::delete_chart::DeleteChart for AppState {
+#[async_trait::async_trait]
+impl command_use_case::delete_chart::DeleteChart for InMemoryApp {
     async fn execute(
         &self,
         input: command_use_case::delete_chart::Input,
@@ -183,20 +184,20 @@ impl command_use_case::delete_chart::DeleteChart for AppState {
     }
 }
 
-impl command_use_case::delete_chart::HasDeleteChart for AppState {
+impl command_use_case::delete_chart::HasDeleteChart for InMemoryApp {
     fn delete_chart(&self) -> Arc<dyn command_use_case::delete_chart::DeleteChart + Send + Sync> {
         Arc::new(self.clone())
     }
 }
 
-impl command_use_case::update_chart::HasUpdateChart for AppState {
+impl command_use_case::update_chart::HasUpdateChart for InMemoryApp {
     fn update_chart(&self) -> Arc<dyn command_use_case::update_chart::UpdateChart + Send + Sync> {
         Arc::new(self.clone())
     }
 }
 
-#[axum::async_trait]
-impl command_use_case::update_chart::UpdateChart for AppState {
+#[async_trait::async_trait]
+impl command_use_case::update_chart::UpdateChart for InMemoryApp {
     async fn execute(
         &self,
         input: command_use_case::update_chart::Input,
@@ -220,8 +221,8 @@ impl command_use_case::update_chart::UpdateChart for AppState {
     }
 }
 
-#[axum::async_trait]
-impl query_use_case::get_chart::GetChart for AppState {
+#[async_trait::async_trait]
+impl query_use_case::get_chart::GetChart for InMemoryApp {
     async fn execute(
         &self,
         input: query_use_case::get_chart::Input,
@@ -230,20 +231,20 @@ impl query_use_case::get_chart::GetChart for AppState {
     }
 }
 
-impl query_use_case::get_chart::HasGetChart for AppState {
+impl query_use_case::get_chart::HasGetChart for InMemoryApp {
     fn get_chart(&self) -> Arc<dyn query_use_case::get_chart::GetChart + Send + Sync> {
         Arc::new(self.clone())
     }
 }
 
-impl query_use_case::list_charts::HasListCharts for AppState {
+impl query_use_case::list_charts::HasListCharts for InMemoryApp {
     fn list_charts(&self) -> Arc<dyn query_use_case::list_charts::ListCharts + Send + Sync> {
         Arc::new(self.clone())
     }
 }
 
-#[axum::async_trait]
-impl query_use_case::list_charts::ListCharts for AppState {
+#[async_trait::async_trait]
+impl query_use_case::list_charts::ListCharts for InMemoryApp {
     async fn execute(
         &self,
         _: query_use_case::list_charts::Input,

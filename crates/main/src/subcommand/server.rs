@@ -1,3 +1,6 @@
+use in_memory_app::InMemoryApp;
+
 pub async fn run() -> anyhow::Result<()> {
-    Ok(server::run().await?)
+    let app = InMemoryApp::new();
+    Ok(server::run(app).await?)
 }
