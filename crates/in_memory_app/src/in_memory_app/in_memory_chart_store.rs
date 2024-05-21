@@ -8,13 +8,14 @@ use write_model::{
     value_object::{ChartId, Version},
 };
 
-pub(crate) struct ChartDatabase {
+pub struct InMemoryChartStore {
     command_data: Arc<Mutex<BTreeMap<ChartId, Vec<Event>>>>,
     query_data: Arc<Mutex<Vec<ChartQueryData>>>,
 }
 
-impl ChartDatabase {
-    pub(crate) fn new() -> Self {
+impl InMemoryChartStore {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         Self {
             command_data: Arc::new(Mutex::new(BTreeMap::new())),
             query_data: Arc::new(Mutex::new(Vec::new())),
@@ -23,7 +24,7 @@ impl ChartDatabase {
 }
 
 #[async_trait::async_trait]
-impl query_use_case::port::ChartReader for ChartDatabase {
+impl query_use_case::port::ChartReader for InMemoryChartStore {
     async fn get(
         &self,
         id: ChartId,
@@ -43,7 +44,7 @@ impl query_use_case::port::ChartReader for ChartDatabase {
 }
 
 #[async_trait::async_trait]
-impl ChartRepository for ChartDatabase {
+impl ChartRepository for InMemoryChartStore {
     async fn find(
         &self,
         id: ChartId,

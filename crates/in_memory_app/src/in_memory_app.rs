@@ -1,23 +1,27 @@
-mod chart_database;
+mod in_memory_chart_store;
 
 use std::{str::FromStr as _, sync::Arc};
 
-use command_use_case::port::{ChartRepository, HasChartRepository as _};
-use query_use_case::port::{ChartQueryData, HasChartReader as _};
+use command_use_case::port::{ChartRepository, HasChartRepository};
+use query_use_case::port::{ChartQueryData, ChartReader, HasChartReader};
 use write_model::{aggregate::Chart, value_object::ChartId};
 
-use self::chart_database::ChartDatabase;
+pub use self::in_memory_chart_store::InMemoryChartStore;
 
 #[derive(Clone)]
 pub struct InMemoryApp {
-    chart_database: Arc<ChartDatabase>,
+    chart_reader: Arc<dyn ChartReader + Send + Sync>,
+    chart_repository: Arc<dyn ChartRepository + Send + Sync>,
 }
 
 impl InMemoryApp {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
+    pub fn new(
+        chart_reader: Arc<dyn ChartReader + Send + Sync>,
+        chart_repository: Arc<dyn ChartRepository + Send + Sync>,
+    ) -> Self {
         Self {
-            chart_database: Arc::new(ChartDatabase::new()),
+            chart_reader,
+            chart_repository,
         }
     }
 }
@@ -79,7 +83,7 @@ impl command_use_case::delete_chart::HasDeleteChart for InMemoryApp {
 
 impl command_use_case::port::HasChartRepository for InMemoryApp {
     fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
-        self.chart_database.clone()
+        self.chart_repository.clone()
     }
 }
 
@@ -116,7 +120,7 @@ impl command_use_case::update_chart::UpdateChart for InMemoryApp {
 
 impl query_use_case::port::HasChartReader for InMemoryApp {
     fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
-        self.chart_database.clone()
+        self.chart_reader.clone()
     }
 }
 
