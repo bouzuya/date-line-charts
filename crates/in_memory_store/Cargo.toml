@@ -2,6 +2,8 @@
 name = "in_memory_store"
 edition = "2021"
 publish = false
+# workaround for <https://github.com/LukeMathWalker/cargo-chef/issues/265>
+version = "0.0.0"
 
 [dependencies]
 async-trait.workspace = true
