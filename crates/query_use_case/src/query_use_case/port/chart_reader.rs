@@ -5,7 +5,7 @@ use write_model::value_object::{ChartId, DateTime};
 #[derive(Clone)]
 pub struct ChartQueryData {
     pub created_at: DateTime,
-    pub id: String,
+    pub id: ChartId,
     pub title: String,
 }
 
