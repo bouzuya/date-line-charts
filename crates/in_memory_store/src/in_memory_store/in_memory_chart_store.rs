@@ -1,7 +1,5 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use command_use_case::port::ChartRepository;
-use query_use_case::port::ChartQueryData;
 use tokio::sync::Mutex;
 use write_model::{
     aggregate::{chart::Event, Chart},
@@ -10,7 +8,7 @@ use write_model::{
 
 pub struct InMemoryChartStore {
     command_data: Arc<Mutex<BTreeMap<ChartId, Vec<Event>>>>,
-    query_data: Arc<Mutex<Vec<ChartQueryData>>>,
+    query_data: Arc<Mutex<Vec<query_use_case::port::ChartQueryData>>>,
 }
 
 impl InMemoryChartStore {
@@ -28,7 +26,8 @@ impl query_use_case::port::ChartReader for InMemoryChartStore {
     async fn get(
         &self,
         id: ChartId,
-    ) -> Result<ChartQueryData, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
+    {
         let query_data = self.query_data.lock().await;
         Ok(query_data
             .iter()
@@ -37,14 +36,20 @@ impl query_use_case::port::ChartReader for InMemoryChartStore {
             .ok_or(query_use_case::get_chart::Error)?)
     }
 
-    async fn list(&self) -> Result<Vec<ChartQueryData>, Box<dyn std::error::Error + Send + Sync>> {
+    async fn list(
+        &self,
+    ) -> Result<Vec<query_use_case::port::ChartQueryData>, Box<dyn std::error::Error + Send + Sync>>
+    {
         let query_data = self.query_data.lock().await;
-        Ok(query_data.iter().cloned().collect::<Vec<ChartQueryData>>())
+        Ok(query_data
+            .iter()
+            .cloned()
+            .collect::<Vec<query_use_case::port::ChartQueryData>>())
     }
 }
 
 #[async_trait::async_trait]
-impl ChartRepository for InMemoryChartStore {
+impl command_use_case::port::ChartRepository for InMemoryChartStore {
     async fn find(
         &self,
         id: ChartId,
@@ -72,7 +77,7 @@ impl ChartRepository for InMemoryChartStore {
                 command_data.insert(id, events.to_vec());
 
                 let state = Chart::from_events(events)?;
-                query_data.push(ChartQueryData {
+                query_data.push(query_use_case::port::ChartQueryData {
                     created_at: state.created_at(),
                     id: state.id(),
                     title: state.title().to_string(),
@@ -92,7 +97,7 @@ impl ChartRepository for InMemoryChartStore {
                 if state.deleted_at().is_some() {
                     query_data.remove(index);
                 } else {
-                    query_data[index] = ChartQueryData {
+                    query_data[index] = query_use_case::port::ChartQueryData {
                         created_at: state.created_at(),
                         id: state.id(),
                         title: state.title().to_string(),
