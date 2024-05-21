@@ -6,6 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow.workspace = true
 clap = { version = "4.5.4", features = ["derive", "env"] }
-in_memory_app.workspace = true
+in_memory_store.workspace = true
 server.workspace = true
 tokio.workspace = true

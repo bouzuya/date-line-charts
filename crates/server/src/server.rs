@@ -1,9 +1,12 @@
+mod app;
 mod handler;
 
 use command_use_case::{
     create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
 };
 use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
+
+pub use self::app::App;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

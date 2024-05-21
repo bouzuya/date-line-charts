@@ -6,7 +6,7 @@ resolver = "2"
 anyhow = "1.0.86"
 async-trait = "0.1.80"
 command_use_case = { path = "crates/command_use_case" }
-in_memory_app = { path = "crates/in_memory_app" }
+in_memory_store = { path = "crates/in_memory_store" }
 mockall = { version = "0.12.1" }
 query_use_case = { path = "crates/query_use_case" }
 server = { path = "crates/server" }

@@ -1,5 +1,5 @@
 [package]
-name = "in_memory_app"
+name = "in_memory_store"
 edition = "2021"
 publish = false
 

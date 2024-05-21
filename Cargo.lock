@@ -280,7 +280,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "in_memory_app",
+ "in_memory_store",
  "server",
  "tokio",
 ]
@@ -479,7 +479,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "in_memory_app"
+name = "in_memory_store"
 version = "0.0.0"
 dependencies = [
  "async-trait",
