@@ -1,10 +1,11 @@
 use std::{collections::BTreeMap, str::FromStr as _, sync::Arc};
 
-use command_use_case::create_chart::{ChartRepository, HasChartRepository as _};
+use command_use_case::port::{ChartRepository, HasChartRepository as _};
+use query_use_case::port::{ChartQueryData, HasChartReader as _};
 use tokio::sync::Mutex;
 use write_model::{
     aggregate::{chart::Event, Chart},
-    value_object::{ChartId, DateTime, Version},
+    value_object::{ChartId, Version},
 };
 
 struct ChartDatabase {
@@ -19,37 +20,25 @@ impl ChartDatabase {
             query_data: Arc::new(Mutex::new(Vec::new())),
         }
     }
+}
 
-    async fn get_impl(
+#[async_trait::async_trait]
+impl query_use_case::port::ChartReader for ChartDatabase {
+    async fn get(
         &self,
-        input: query_use_case::get_chart::Input,
-    ) -> Result<query_use_case::get_chart::Output, query_use_case::get_chart::Error> {
+        id: ChartId,
+    ) -> Result<ChartQueryData, Box<dyn std::error::Error + Send + Sync>> {
         let query_data = self.query_data.lock().await;
-        let chart = query_data
+        Ok(query_data
             .iter()
-            .find(|chart| chart.id == input.chart_id)
-            .ok_or(query_use_case::get_chart::Error)?;
-        Ok(query_use_case::get_chart::Output {
-            created_at: chart.created_at.to_string(),
-            id: chart.id.clone(),
-            title: chart.title.clone(),
-        })
+            .find(|chart| chart.id == id.to_string())
+            .cloned()
+            .ok_or(query_use_case::get_chart::Error)?)
     }
 
-    async fn list_impl(
-        &self,
-    ) -> Result<query_use_case::list_charts::Output, query_use_case::list_charts::Error> {
+    async fn list(&self) -> Result<Vec<ChartQueryData>, Box<dyn std::error::Error + Send + Sync>> {
         let query_data = self.query_data.lock().await;
-        Ok(query_use_case::list_charts::Output(
-            query_data
-                .iter()
-                .map(|chart| query_use_case::list_charts::Chart {
-                    created_at: chart.created_at.to_string(),
-                    id: chart.id.clone(),
-                    title: chart.title.clone(),
-                })
-                .collect(),
-        ))
+        Ok(query_data.iter().cloned().collect())
     }
 }
 
@@ -129,12 +118,6 @@ impl InMemoryApp {
     }
 }
 
-impl command_use_case::create_chart::HasChartRepository for InMemoryApp {
-    fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
-        self.chart_database.clone()
-    }
-}
-
 #[async_trait::async_trait]
 impl command_use_case::create_chart::CreateChart for InMemoryApp {
     async fn execute(
@@ -190,6 +173,12 @@ impl command_use_case::delete_chart::HasDeleteChart for InMemoryApp {
     }
 }
 
+impl command_use_case::port::HasChartRepository for InMemoryApp {
+    fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
+        self.chart_database.clone()
+    }
+}
+
 impl command_use_case::update_chart::HasUpdateChart for InMemoryApp {
     fn update_chart(&self) -> Arc<dyn command_use_case::update_chart::UpdateChart + Send + Sync> {
         Arc::new(self.clone())
@@ -202,10 +191,10 @@ impl command_use_case::update_chart::UpdateChart for InMemoryApp {
         &self,
         input: command_use_case::update_chart::Input,
     ) -> Result<command_use_case::update_chart::Output, command_use_case::update_chart::Error> {
+        let chart_repository = self.chart_repository();
         let chart_id = ChartId::from_str(&input.chart_id)
             .map_err(|_| command_use_case::update_chart::Error)?;
-        let chart = self
-            .chart_repository()
+        let chart = chart_repository
             .find(chart_id)
             .await
             .map_err(|_| command_use_case::update_chart::Error)?
@@ -213,11 +202,17 @@ impl command_use_case::update_chart::UpdateChart for InMemoryApp {
         let (_, events) = chart
             .update(input.title)
             .map_err(|_| command_use_case::update_chart::Error)?;
-        self.chart_repository()
+        chart_repository
             .store(Some(chart.version()), &events)
             .await
             .map_err(|_| command_use_case::update_chart::Error)?;
         Ok(command_use_case::update_chart::Output)
+    }
+}
+
+impl query_use_case::port::HasChartReader for InMemoryApp {
+    fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
+        self.chart_database.clone()
     }
 }
 
@@ -227,7 +222,24 @@ impl query_use_case::get_chart::GetChart for InMemoryApp {
         &self,
         input: query_use_case::get_chart::Input,
     ) -> Result<query_use_case::get_chart::Output, query_use_case::get_chart::Error> {
-        self.chart_database.get_impl(input).await
+        let chart_reader = self.chart_reader();
+        let chart_id =
+            ChartId::from_str(&input.chart_id).map_err(|_| query_use_case::get_chart::Error)?;
+        chart_reader
+            .get(chart_id)
+            .await
+            .map(
+                |ChartQueryData {
+                     created_at,
+                     id,
+                     title,
+                 }| query_use_case::get_chart::Output {
+                    created_at: created_at.to_string(),
+                    id,
+                    title,
+                },
+            )
+            .map_err(|_| query_use_case::get_chart::Error)
     }
 }
 
@@ -249,13 +261,28 @@ impl query_use_case::list_charts::ListCharts for InMemoryApp {
         &self,
         _: query_use_case::list_charts::Input,
     ) -> Result<query_use_case::list_charts::Output, query_use_case::list_charts::Error> {
-        self.chart_database.list_impl().await
+        let chart_reader = self.chart_reader();
+        chart_reader
+            .list()
+            .await
+            .map(|charts| {
+                query_use_case::list_charts::Output(
+                    charts
+                        .into_iter()
+                        .map(
+                            |ChartQueryData {
+                                 created_at,
+                                 id,
+                                 title,
+                             }| query_use_case::list_charts::Chart {
+                                created_at: created_at.to_string(),
+                                id,
+                                title,
+                            },
+                        )
+                        .collect(),
+                )
+            })
+            .map_err(|_| query_use_case::list_charts::Error)
     }
-}
-
-#[derive(Clone)]
-struct ChartQueryData {
-    created_at: DateTime,
-    id: String,
-    title: String,
 }

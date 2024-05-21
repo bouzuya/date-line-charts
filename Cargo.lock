@@ -707,6 +707,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "thiserror",
+ "write_model",
 ]
 
 [[package]]

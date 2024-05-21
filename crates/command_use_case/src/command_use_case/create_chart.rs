@@ -1,7 +1,3 @@
-mod chart_repository;
-
-pub use self::chart_repository::{ChartRepository, HasChartRepository};
-
 use std::sync::Arc;
 
 pub struct Input {

@@ -18,7 +18,6 @@ pub trait ChartRepository {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
-#[async_trait::async_trait]
 pub trait HasChartRepository {
     fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync>;
 }
