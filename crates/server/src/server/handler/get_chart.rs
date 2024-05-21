@@ -95,7 +95,7 @@ mod tests {
         mocks.get_chart = {
             let mut mock = MockGetChart::new();
             mock.expect_execute()
-                .return_once(|_| Err(query_use_case::get_chart::Error));
+                .return_once(|_| Err(query_use_case::get_chart::Error::ChartGet(build_error())));
             Arc::new(mock)
         };
         let app = router().with_state(mocks.clone());
@@ -142,6 +142,10 @@ mod tests {
             id: "chart_id1".to_string(),
             title: "title1".to_string(),
         }
+    }
+
+    fn build_error() -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::new(std::io::ErrorKind::Other, "error"))
     }
 
     fn build_request(

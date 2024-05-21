@@ -76,8 +76,11 @@ mod tests {
         let mut mocks = Mocks::with_happy_path_behavior(title.clone(), chart_id.clone());
         mocks.update_chart = {
             let mut mock = MockUpdateChart::new();
-            mock.expect_execute()
-                .return_once(|_| Err(command_use_case::update_chart::Error));
+            mock.expect_execute().return_once(|_| {
+                Err(command_use_case::update_chart::Error::ChartStore(
+                    build_error(),
+                ))
+            });
             Arc::new(mock)
         };
         let app = router().with_state(mocks.clone());
@@ -113,6 +116,10 @@ mod tests {
         ) -> Arc<dyn command_use_case::update_chart::UpdateChart + Send + Sync> {
             self.update_chart.clone()
         }
+    }
+
+    fn build_error() -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::new(std::io::ErrorKind::Other, "error"))
     }
 
     fn build_request<T: serde::Serialize>(

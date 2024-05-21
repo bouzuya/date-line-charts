@@ -33,7 +33,7 @@ impl query_use_case::port::ChartReader for InMemoryChartStore {
             .iter()
             .find(|chart| chart.id == id)
             .cloned()
-            .ok_or(query_use_case::get_chart::Error)?)
+            .ok_or("not found")?)
     }
 
     async fn list(

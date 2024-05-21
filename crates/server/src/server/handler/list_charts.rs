@@ -94,7 +94,7 @@ mod tests {
         mocks.list_charts = {
             let mut mock = MockListCharts::new();
             mock.expect_execute()
-                .return_once(|_| Err(query_use_case::list_charts::Error));
+                .return_once(|_| Err(query_use_case::list_charts::Error::ChartList(build_error())));
             Arc::new(mock)
         };
         let app = router().with_state(mocks.clone());
@@ -134,6 +134,10 @@ mod tests {
             id: "chart_id1".to_string(),
             title: "title1".to_string(),
         }
+    }
+
+    fn build_error() -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::new(std::io::ErrorKind::Other, "error"))
     }
 
     fn build_request() -> anyhow::Result<axum::http::Request<axum::body::Body>> {

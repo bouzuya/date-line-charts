@@ -67,8 +67,11 @@ mod tests {
         let mut mocks = Mocks::with_happy_path_behavior(chart_id.clone());
         mocks.delete_chart = {
             let mut mock = MockDeleteChart::new();
-            mock.expect_execute()
-                .return_once(|_| Err(command_use_case::delete_chart::Error));
+            mock.expect_execute().return_once(|_| {
+                Err(command_use_case::delete_chart::Error::ChartStore(
+                    build_error(),
+                ))
+            });
             Arc::new(mock)
         };
         let app = router().with_state(mocks.clone());
@@ -103,6 +106,10 @@ mod tests {
         ) -> Arc<dyn command_use_case::delete_chart::DeleteChart + Send + Sync> {
             self.delete_chart.clone()
         }
+    }
+
+    fn build_error() -> Box<dyn std::error::Error + Send + Sync> {
+        Box::new(std::io::Error::new(std::io::ErrorKind::Other, "error"))
     }
 
     fn build_request(
