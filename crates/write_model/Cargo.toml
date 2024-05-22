@@ -2,8 +2,6 @@
 name = "write_model"
 edition = "2021"
 publish = false
-# workaround for <https://github.com/LukeMathWalker/cargo-chef/issues/265>
-version = "0.0.0"
 
 [dependencies]
 chrono = "0.4.38"
