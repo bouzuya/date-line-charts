@@ -73,7 +73,7 @@ impl command_use_case::port::ChartRepository for InMemoryChartStore {
         }
         match current {
             None => {
-                let id = events[0].id;
+                let id = events[0].stream_id;
                 command_data.insert(id, events.to_vec());
 
                 let state = Chart::from_events(events)?;
@@ -84,7 +84,7 @@ impl command_use_case::port::ChartRepository for InMemoryChartStore {
                 });
             }
             Some(_version) => {
-                let id = events[0].id;
+                let id = events[0].stream_id;
                 let stored_events = command_data.get_mut(&id).ok_or("not found")?;
                 // TODO: check version
                 stored_events.extend(events.to_vec());

@@ -1,4 +1,4 @@
-use crate::value_object::{ChartId, DateTime, Version};
+use crate::value_object::{ChartId, DateTime, EventId, Version};
 
 pub type Event = BaseEvent<ChartId, EventData>;
 
@@ -6,7 +6,8 @@ pub type Event = BaseEvent<ChartId, EventData>;
 pub struct BaseEvent<I, D> {
     pub at: DateTime,
     pub data: D,
-    pub id: I,
+    pub id: EventId,
+    pub stream_id: I,
     pub version: Version,
 }
 

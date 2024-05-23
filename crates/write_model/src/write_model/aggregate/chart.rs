@@ -1,6 +1,6 @@
 pub mod event;
 
-use crate::value_object::{ChartId, DateTime, Version};
+use crate::value_object::{ChartId, DateTime, EventId, Version};
 
 pub use self::event::Event;
 use self::event::{Created, Deleted, EventData, Updated};
@@ -32,20 +32,21 @@ impl Chart {
             return Err(Error::InvalidTitle);
         }
         let at = DateTime::now();
-        let id = ChartId::generate();
+        let stream_id = ChartId::generate();
         let version = Version::new();
         let events = vec![Event {
             at,
             data: EventData::Created(Created {
                 title: title.clone(),
             }),
-            id,
+            id: EventId::generate(),
+            stream_id,
             version,
         }];
         let state = Self {
             created_at: at,
             deleted_at: None,
-            id,
+            id: stream_id,
             title,
             version,
         };
@@ -58,12 +59,13 @@ impl Chart {
             Some(Event {
                 at,
                 data: EventData::Created(event),
-                id,
+                stream_id,
                 version,
+                ..
             }) => Self {
                 created_at: *at,
                 deleted_at: None,
-                id: *id,
+                id: *stream_id,
                 title: event.title.clone(),
                 version: *version,
             },
@@ -99,7 +101,8 @@ impl Chart {
         let events = vec![Event {
             at,
             data: EventData::Deleted(Deleted {}),
-            id: self.id,
+            id: EventId::generate(),
+            stream_id: self.id,
             version,
         }];
         let mut state = self.clone();
@@ -130,7 +133,8 @@ impl Chart {
             data: EventData::Updated(Updated {
                 title: title.clone(),
             }),
-            id: self.id,
+            id: EventId::generate(),
+            stream_id: self.id,
             version,
         }];
         let mut state = self.clone();
