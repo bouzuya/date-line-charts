@@ -7,14 +7,14 @@ use self::event::{Created, Deleted, EventData, Updated};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("created not found")]
-    CreatedNotFound,
     #[error("invalid title")]
     InvalidTitle,
-    #[error("multiple created")]
-    MultipleCreated,
-    #[error("overflow version")]
-    OverflowVersion,
+    #[error("multiple created event")]
+    MultipleCreatedEvent,
+    #[error("no created event")]
+    NoCreatedEvent,
+    #[error("version overflow")]
+    VersionOverflow,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,7 +50,7 @@ impl Chart {
 
     pub fn from_events(events: &[Event]) -> Result<Self, Error> {
         let mut state = match events.first() {
-            None => return Err(Error::CreatedNotFound),
+            None => return Err(Error::NoCreatedEvent),
             Some(Event {
                 at,
                 data: EventData::Created(event),
@@ -64,7 +64,7 @@ impl Chart {
                 title: event.title.clone(),
                 version: *version,
             },
-            Some(_) => return Err(Error::CreatedNotFound),
+            Some(_) => return Err(Error::NoCreatedEvent),
         };
         state.apply_events(&events[1..])?;
         Ok(state)
@@ -94,7 +94,7 @@ impl Chart {
         let events = vec![Event::new(
             self.id,
             EventData::Deleted(Deleted {}),
-            self.version.next().map_err(|_| Error::OverflowVersion)?,
+            self.version.next().map_err(|_| Error::VersionOverflow)?,
         )];
         let mut state = self.clone();
         state.apply_events(&events)?;
@@ -122,7 +122,7 @@ impl Chart {
             EventData::Updated(Updated {
                 title: title.clone(),
             }),
-            self.version.next().map_err(|_| Error::OverflowVersion)?,
+            self.version.next().map_err(|_| Error::VersionOverflow)?,
         )];
         let mut state = self.clone();
         state.apply_events(&events)?;
@@ -138,7 +138,7 @@ impl Chart {
             let at = event.at;
             let version = event.version;
             match &event.data {
-                EventData::Created(_) => return Err(Error::MultipleCreated),
+                EventData::Created(_) => return Err(Error::MultipleCreatedEvent),
                 EventData::Updated(e) => {
                     self.title = e.title.clone();
                     self.version = version;
