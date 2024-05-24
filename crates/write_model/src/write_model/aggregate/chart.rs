@@ -5,8 +5,10 @@ use crate::value_object::{ChartId, DateTime, Version};
 use self::event::{Created, Deleted, Updated};
 pub use self::event::{Event, EventData};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {
+    #[error("already deleted")]
+    AlreadyDeleted,
     #[error("invalid title")]
     InvalidTitle,
     #[error("multiple created event")]
@@ -82,6 +84,9 @@ impl Chart {
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
+        if self.deleted_at.is_some() {
+            return Err(Error::AlreadyDeleted);
+        }
         let events = vec![Event::new(
             self.id,
             EventData::Deleted(Deleted {}),
@@ -105,6 +110,9 @@ impl Chart {
     }
 
     pub fn update(&self, title: String) -> Result<(Self, Vec<Event>), Error> {
+        if self.deleted_at.is_some() {
+            return Err(Error::AlreadyDeleted);
+        }
         if title.is_empty() {
             return Err(Error::InvalidTitle);
         }
@@ -165,5 +173,50 @@ mod tests {
         assert_eq!(Chart::from_events(&all_events)?, state);
         assert!(state.deleted_at.is_some());
         Ok(())
+    }
+
+    #[test]
+    fn test_delete() -> anyhow::Result<()> {
+        let (before_state, before_events) = build_chart()?;
+        let (deleted, events) = before_state.delete()?;
+        assert!(deleted.deleted_at().is_some());
+        assert_eq!(deleted.id(), before_state.id());
+        assert_eq!(deleted.title(), before_state.title());
+        let all_events = {
+            let mut all_events = before_events.clone();
+            all_events.extend(events);
+            all_events
+        };
+        assert_eq!(Chart::from_events(&all_events)?, deleted);
+
+        let (before_state, _) = before_state.delete()?;
+        assert_eq!(before_state.delete().unwrap_err(), Error::AlreadyDeleted);
+        Ok(())
+    }
+
+    #[test]
+    fn test_update() -> anyhow::Result<()> {
+        let (before_state, before_events) = build_chart()?;
+        let (updated, events) = before_state.update("title2".to_string())?;
+        assert_eq!(updated.deleted_at(), before_state.deleted_at());
+        assert_eq!(updated.id(), before_state.id());
+        assert_eq!(updated.title(), "title2");
+        let all_events = {
+            let mut all_events = before_events.clone();
+            all_events.extend(events);
+            all_events
+        };
+        assert_eq!(Chart::from_events(&all_events)?, updated);
+
+        let (before_state, _) = before_state.delete()?;
+        assert_eq!(
+            before_state.update("title2".to_string()).unwrap_err(),
+            Error::AlreadyDeleted
+        );
+        Ok(())
+    }
+
+    fn build_chart() -> anyhow::Result<(Chart, Vec<Event>)> {
+        Ok(Chart::create("title".to_string())?)
     }
 }
