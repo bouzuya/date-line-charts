@@ -75,33 +75,39 @@ impl command_use_case::port::ChartRepository for InMemoryChartStore {
             None => {
                 let id = events[0].stream_id;
                 command_data.insert(id, events.to_vec());
-
-                let state = Chart::from_events(events)?;
-                query_data.push(query_use_case::port::ChartQueryData {
-                    created_at: state.created_at(),
-                    id: state.id(),
-                    title: state.title().to_string(),
-                });
             }
             Some(_version) => {
                 let id = events[0].stream_id;
                 let stored_events = command_data.get_mut(&id).ok_or("not found")?;
                 // TODO: check version
                 stored_events.extend(events.to_vec());
+            }
+        }
 
-                let state = Chart::from_events(stored_events)?;
-                let index = query_data
-                    .iter()
-                    .position(|chart| chart.id == state.id())
-                    .ok_or("not found")?;
-                if state.deleted_at().is_some() {
-                    query_data.remove(index);
-                } else {
-                    query_data[index] = query_use_case::port::ChartQueryData {
-                        created_at: state.created_at(),
-                        id: state.id(),
-                        title: state.title().to_string(),
-                    };
+        // query writer
+        for event in events {
+            match &event.data {
+                write_model::aggregate::chart::EventData::Created(data) => {
+                    query_data.push(query_use_case::port::ChartQueryData {
+                        created_at: event.at,
+                        id: event.stream_id,
+                        title: data.title.clone(),
+                    });
+                }
+                write_model::aggregate::chart::EventData::Deleted(_) => {
+                    if let Some(index) = query_data
+                        .iter()
+                        .position(|chart| chart.id == event.stream_id)
+                    {
+                        query_data.remove(index);
+                    }
+                }
+                write_model::aggregate::chart::EventData::Updated(data) => {
+                    let index = query_data
+                        .iter()
+                        .position(|chart| chart.id == event.stream_id)
+                        .ok_or("not found")?;
+                    query_data[index].title.clone_from(&data.title);
                 }
             }
         }

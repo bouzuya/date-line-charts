@@ -2,8 +2,8 @@ pub mod event;
 
 use crate::value_object::{ChartId, DateTime, Version};
 
-pub use self::event::Event;
-use self::event::{Created, Deleted, EventData, Updated};
+use self::event::{Created, Deleted, Updated};
+pub use self::event::{Event, EventData};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -19,7 +19,6 @@ pub enum Error {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Chart {
-    created_at: DateTime,
     deleted_at: Option<DateTime>,
     id: ChartId,
     title: String,
@@ -39,7 +38,6 @@ impl Chart {
             Version::new(),
         )];
         let state = Self {
-            created_at: events[0].at,
             deleted_at: None,
             id: events[0].stream_id,
             title,
@@ -52,13 +50,12 @@ impl Chart {
         let mut state = match events.first() {
             None => return Err(Error::NoCreatedEvent),
             Some(Event {
-                at,
+                at: _,
                 data: EventData::Created(event),
+                id: _,
                 stream_id,
                 version,
-                ..
             }) => Self {
-                created_at: *at,
                 deleted_at: None,
                 id: *stream_id,
                 title: event.title.clone(),
@@ -71,23 +68,17 @@ impl Chart {
     }
 
     pub fn reconstruct(
-        created_at: DateTime,
         deleted_at: Option<DateTime>,
         id: ChartId,
         title: String,
         version: Version,
     ) -> Self {
         Self {
-            created_at,
             deleted_at,
             id,
             title,
             version,
         }
-    }
-
-    pub fn created_at(&self) -> DateTime {
-        self.created_at
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
