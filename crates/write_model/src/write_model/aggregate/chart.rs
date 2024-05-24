@@ -1,6 +1,6 @@
 pub mod event;
 
-use crate::value_object::{ChartId, DateTime, EventId, Version};
+use crate::value_object::{ChartId, DateTime, Version};
 
 pub use self::event::Event;
 use self::event::{Created, Deleted, EventData, Updated};
@@ -31,24 +31,19 @@ impl Chart {
         if title.is_empty() {
             return Err(Error::InvalidTitle);
         }
-        let at = DateTime::now();
-        let stream_id = ChartId::generate();
-        let version = Version::new();
-        let events = vec![Event {
-            at,
-            data: EventData::Created(Created {
+        let events = vec![Event::new(
+            ChartId::generate(),
+            EventData::Created(Created {
                 title: title.clone(),
             }),
-            id: EventId::generate(),
-            stream_id,
-            version,
-        }];
+            Version::new(),
+        )];
         let state = Self {
-            created_at: at,
+            created_at: events[0].at,
             deleted_at: None,
-            id: stream_id,
+            id: events[0].stream_id,
             title,
-            version,
+            version: events[0].version,
         };
         Ok((state, events))
     }
@@ -96,15 +91,11 @@ impl Chart {
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
-        let at = DateTime::now();
-        let version = self.version.next().map_err(|_| Error::OverflowVersion)?;
-        let events = vec![Event {
-            at,
-            data: EventData::Deleted(Deleted {}),
-            id: EventId::generate(),
-            stream_id: self.id,
-            version,
-        }];
+        let events = vec![Event::new(
+            self.id,
+            EventData::Deleted(Deleted {}),
+            self.version.next().map_err(|_| Error::OverflowVersion)?,
+        )];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))
@@ -126,17 +117,13 @@ impl Chart {
         if title.is_empty() {
             return Err(Error::InvalidTitle);
         }
-        let at = DateTime::now();
-        let version = self.version.next().map_err(|_| Error::OverflowVersion)?;
-        let events = vec![Event {
-            at,
-            data: EventData::Updated(Updated {
+        let events = vec![Event::new(
+            self.id,
+            EventData::Updated(Updated {
                 title: title.clone(),
             }),
-            id: EventId::generate(),
-            stream_id: self.id,
-            version,
-        }];
+            self.version.next().map_err(|_| Error::OverflowVersion)?,
+        )];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))

@@ -1,6 +1,6 @@
 pub mod event;
 
-use crate::value_object::{ChartId, DataPointId, DateTime, EventId, Version, XValue, YValue};
+use crate::value_object::{ChartId, DataPointId, DateTime, Version, XValue, YValue};
 
 pub use self::event::Event;
 use self::event::{Created, Deleted, EventData, Updated};
@@ -30,22 +30,16 @@ impl DataPoint {
         x_value: XValue,
         y_value: YValue,
     ) -> Result<(Self, Vec<Event>), Error> {
-        let at = DateTime::now();
-        let id = EventId::generate();
-        let stream_id = DataPointId::new(chart_id, x_value);
-        let version = Version::new();
-        let events = vec![Event {
-            at,
-            data: EventData::Created(Created { value: y_value }),
-            id,
-            stream_id,
-            version,
-        }];
+        let events = vec![Event::new(
+            DataPointId::new(chart_id, x_value),
+            EventData::Created(Created { value: y_value }),
+            Version::new(),
+        )];
         let state = Self {
-            created_at: at,
+            created_at: events[0].at,
             deleted_at: None,
-            id: stream_id,
-            version,
+            id: events[0].stream_id,
+            version: events[0].version,
             y_value,
         };
         Ok((state, events))
@@ -98,17 +92,11 @@ impl DataPoint {
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
-        let at = DateTime::now();
-        let id = EventId::generate();
-        let stream_id = self.id;
-        let version = self.version.next().map_err(|_| Error::VersionOverflow)?;
-        let events = vec![Event {
-            at,
-            data: EventData::Deleted(Deleted {}),
-            id,
-            stream_id,
-            version,
-        }];
+        let events = vec![Event::new(
+            self.id,
+            EventData::Deleted(Deleted {}),
+            self.version.next().map_err(|_| Error::VersionOverflow)?,
+        )];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))
@@ -131,17 +119,11 @@ impl DataPoint {
     }
 
     pub fn update(&self, y_value: YValue) -> Result<(Self, Vec<Event>), Error> {
-        let at = DateTime::now();
-        let id = EventId::generate();
-        let stream_id = self.id;
-        let version = self.version.next().map_err(|_| Error::VersionOverflow)?;
-        let events = vec![Event {
-            at,
-            data: EventData::Updated(Updated { value: y_value }),
-            id,
-            stream_id,
-            version,
-        }];
+        let events = vec![Event::new(
+            self.id,
+            EventData::Updated(Updated { value: y_value }),
+            self.version.next().map_err(|_| Error::VersionOverflow)?,
+        )];
         let mut state = self.clone();
         state.apply_events(&events)?;
         Ok((state, events))
