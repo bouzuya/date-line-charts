@@ -5,8 +5,10 @@ use crate::value_object::{ChartId, DataPointId, DateTime, Version, XValue, YValu
 pub use self::event::Event;
 use self::event::{Created, Deleted, EventData, Updated};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {
+    #[error("already deleted")]
+    AlreadyDeleted,
     #[error("multiple created event")]
     MultipleCreatedEvent,
     #[error("no created event")]
@@ -83,6 +85,9 @@ impl DataPoint {
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
+        if self.deleted_at.is_some() {
+            return Err(Error::AlreadyDeleted);
+        }
         let events = vec![Event::new(
             self.id,
             EventData::Deleted(Deleted {}),
@@ -110,6 +115,9 @@ impl DataPoint {
     }
 
     pub fn update(&self, y_value: YValue) -> Result<(Self, Vec<Event>), Error> {
+        if self.deleted_at.is_some() {
+            return Err(Error::AlreadyDeleted);
+        }
         let events = vec![Event::new(
             self.id,
             EventData::Updated(Updated { value: y_value }),
@@ -174,5 +182,59 @@ mod tests {
         assert_eq!(DataPoint::from_events(&all_events)?, state);
         assert!(state.deleted_at.is_some());
         Ok(())
+    }
+
+    #[test]
+    fn test_delete() -> anyhow::Result<()> {
+        let (before_state, before_events) = build_data_point()?;
+        let (deleted, events) = before_state.delete()?;
+        assert_eq!(deleted.chart_id(), before_state.chart_id());
+        assert!(deleted.deleted_at().is_some());
+        assert_eq!(deleted.id(), before_state.id());
+        assert_eq!(deleted.x_value(), before_state.x_value());
+        assert_eq!(deleted.y_value(), before_state.y_value());
+        let all_events = {
+            let mut e = before_events.clone();
+            e.extend(events);
+            e
+        };
+        assert_eq!(DataPoint::from_events(&all_events)?, deleted);
+
+        let (before_state, _) = before_state.delete()?;
+        assert_eq!(before_state.delete().unwrap_err(), Error::AlreadyDeleted);
+        Ok(())
+    }
+
+    #[test]
+    fn test_update() -> anyhow::Result<()> {
+        let (before_state, before_events) = build_data_point()?;
+        let (updated, events) = before_state.update(YValue::from(456_u32))?;
+        assert_eq!(updated.chart_id(), before_state.chart_id());
+        assert_eq!(updated.deleted_at(), before_state.deleted_at());
+        assert_eq!(updated.id(), before_state.id());
+        assert_eq!(updated.x_value(), before_state.x_value());
+        assert_eq!(updated.y_value(), YValue::from(456_u32));
+        let all_events = {
+            let mut e = before_events.clone();
+            e.extend(events);
+            e
+        };
+        assert_eq!(DataPoint::from_events(&all_events)?, updated);
+
+        let (before_state, _) = before_state.delete()?;
+        assert_eq!(
+            before_state.update(YValue::from(456_u32)).unwrap_err(),
+            Error::AlreadyDeleted
+        );
+        Ok(())
+    }
+
+    fn build_data_point() -> anyhow::Result<(DataPoint, Vec<Event>)> {
+        let chart_id = ChartId::generate();
+        Ok(DataPoint::create(
+            chart_id,
+            XValue::from_str("2020-01-02")?,
+            YValue::from(123_u32),
+        )?)
     }
 }
