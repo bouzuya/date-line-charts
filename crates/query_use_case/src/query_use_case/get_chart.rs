@@ -2,7 +2,9 @@ use std::{str::FromStr as _, sync::Arc};
 
 use write_model::value_object::ChartId;
 
-use crate::port::{ChartQueryData, ChartReader, HasChartReader};
+use crate::port::{ChartQueryData, HasChartReader};
+#[cfg(any(test, feature = "test-util"))]
+use crate::query_use_case::port::ChartReader;
 
 pub struct Input {
     pub chart_id: String,

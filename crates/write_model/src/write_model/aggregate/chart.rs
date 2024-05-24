@@ -140,7 +140,7 @@ impl Chart {
             match &event.data {
                 EventData::Created(_) => return Err(Error::MultipleCreatedEvent),
                 EventData::Updated(e) => {
-                    self.title = e.title.clone();
+                    self.title.clone_from(&e.title);
                     self.version = version;
                 }
                 EventData::Deleted(_) => {

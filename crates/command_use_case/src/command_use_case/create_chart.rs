@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use write_model::aggregate::Chart;
 
-use crate::port::{ChartRepository, HasChartRepository};
+#[cfg(any(test, feature = "test-util"))]
+use crate::command_use_case::port::ChartRepository;
+use crate::port::HasChartRepository;
 
 pub struct Input {
     pub title: String,
