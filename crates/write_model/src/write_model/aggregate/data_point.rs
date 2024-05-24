@@ -17,7 +17,6 @@ pub enum Error {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DataPoint {
-    created_at: DateTime,
     deleted_at: Option<DateTime>,
     id: DataPointId,
     version: Version,
@@ -36,7 +35,6 @@ impl DataPoint {
             Version::new(),
         )];
         let state = Self {
-            created_at: events[0].at,
             deleted_at: None,
             id: events[0].stream_id,
             version: events[0].version,
@@ -49,13 +47,12 @@ impl DataPoint {
         let mut state = match events.first() {
             None => return Err(Error::NoCreatedEvent),
             Some(Event {
-                at,
+                at: _,
                 data: EventData::Created(event),
                 id: _,
                 stream_id,
                 version,
             }) => Self {
-                created_at: *at,
                 deleted_at: None,
                 id: *stream_id,
                 version: *version,
@@ -68,14 +65,12 @@ impl DataPoint {
     }
 
     pub fn reconstruct(
-        created_at: DateTime,
         deleted_at: Option<DateTime>,
         id: DataPointId,
         version: Version,
         y_value: YValue,
     ) -> Self {
         Self {
-            created_at,
             deleted_at,
             id,
             version,
@@ -85,10 +80,6 @@ impl DataPoint {
 
     pub fn chart_id(&self) -> ChartId {
         self.id.chart_id()
-    }
-
-    pub fn created_at(&self) -> DateTime {
-        self.created_at
     }
 
     pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
