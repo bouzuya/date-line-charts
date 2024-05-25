@@ -5,9 +5,9 @@ use write_model::{
     value_object::{ChartId, XValue, YValue},
 };
 
-use crate::port::{
-    ChartRepository, DataPointRepository, HasChartRepository, HasDataPointRepository,
-};
+#[cfg(any(test, feature = "test-util"))]
+use crate::port::{ChartRepository, DataPointRepository};
+use crate::port::{HasChartRepository, HasDataPointRepository};
 
 pub struct Input {
     pub chart_id: String,
