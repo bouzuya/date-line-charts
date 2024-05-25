@@ -23,16 +23,16 @@ pub struct Output {
 pub enum Error {
     #[error("chart find")]
     ChartFind(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("chart not found")]
-    ChartNotFound,
+    #[error("chart id")]
+    ChartId(#[source] write_model::value_object::chart_id::Error),
+    #[error("chart not found (id = {0})")]
+    ChartNotFound(ChartId),
     #[error("data point create")]
     DataPointCreate(#[source] write_model::aggregate::data_point::Error),
     #[error("data point store")]
     DataPointStore(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("invalid chart id")]
-    InvalidChartId(#[source] write_model::value_object::chart_id::Error),
-    #[error("invalid x value")]
-    InvalidXValue(#[source] write_model::value_object::x_value::Error),
+    #[error("x value")]
+    XValue(#[source] write_model::value_object::x_value::Error),
 }
 
 #[async_trait::async_trait]
@@ -48,15 +48,15 @@ pub trait CreateDataPoint: HasChartRepository + HasDataPointRepository {
         let chart_repository = self.chart_repository();
         let data_point_repository = self.data_point_repository();
 
-        let chart_id = ChartId::from_str(&chart_id).map_err(Error::InvalidChartId)?;
-        let x_value = XValue::from_str(&x_value).map_err(Error::InvalidXValue)?;
+        let chart_id = ChartId::from_str(&chart_id).map_err(Error::ChartId)?;
+        let x_value = XValue::from_str(&x_value).map_err(Error::XValue)?;
         let y_value = YValue::from(y_value);
 
         let chart = chart_repository
             .find(chart_id)
             .await
             .map_err(Error::ChartFind)?
-            .ok_or(Error::ChartNotFound)?;
+            .ok_or(Error::ChartNotFound(chart_id))?;
 
         let (state, events) =
             DataPoint::create(chart.id(), x_value, y_value).map_err(Error::DataPointCreate)?;
