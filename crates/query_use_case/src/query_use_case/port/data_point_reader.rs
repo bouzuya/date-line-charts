@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use write_model::value_object::{ChartId, DateTime, XValue, YValue};
+use write_model::value_object::{ChartId, DataPointId, DateTime, XValue, YValue};
 
 #[derive(Clone)]
 pub struct DataPointQueryData {
