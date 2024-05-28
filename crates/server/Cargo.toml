@@ -7,7 +7,7 @@ publish = false
 axum = "0.7.5"
 command_use_case.workspace = true
 query_use_case.workspace = true
-serde = { version = "1.0.202", features = ["derive"] }
+serde = { version = "1.0.203", features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
 
