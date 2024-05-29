@@ -1,4 +1,5 @@
 mod create_chart;
+mod create_data_point;
 mod delete_chart;
 mod get_chart;
 mod get_root;
@@ -8,13 +9,15 @@ mod update_chart;
 use axum::Router;
 
 use command_use_case::{
-    create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
+    create_chart::HasCreateChart, create_data_point::HasCreateDataPoint,
+    delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
 };
 use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
 
 pub fn router<
     T: Clone
         + HasCreateChart
+        + HasCreateDataPoint
         + HasDeleteChart
         + HasGetChart
         + HasListCharts
@@ -25,6 +28,7 @@ pub fn router<
 >() -> Router<T> {
     Router::new()
         .merge(create_chart::router())
+        .merge(create_data_point::router())
         .merge(delete_chart::router())
         .merge(get_chart::router())
         .merge(get_root::router())

@@ -1,22 +1,25 @@
 use std::sync::Arc;
 
-use command_use_case::port::ChartRepository;
+use command_use_case::port::{ChartRepository, DataPointRepository};
 use query_use_case::port::ChartReader;
 
 #[derive(Clone)]
 pub struct App {
     chart_reader: Arc<dyn ChartReader + Send + Sync>,
     chart_repository: Arc<dyn ChartRepository + Send + Sync>,
+    data_point_repository: Arc<dyn DataPointRepository + Send + Sync>,
 }
 
 impl App {
     pub fn new(
         chart_reader: Arc<dyn ChartReader + Send + Sync>,
         chart_repository: Arc<dyn ChartRepository + Send + Sync>,
+        data_point_repository: Arc<dyn DataPointRepository + Send + Sync>,
     ) -> Self {
         Self {
             chart_reader,
             chart_repository,
+            data_point_repository,
         }
     }
 }
@@ -25,6 +28,16 @@ impl command_use_case::create_chart::CreateChart for App {}
 
 impl command_use_case::create_chart::HasCreateChart for App {
     fn create_chart(&self) -> Arc<dyn command_use_case::create_chart::CreateChart + Send + Sync> {
+        Arc::new(self.clone())
+    }
+}
+
+impl command_use_case::create_data_point::CreateDataPoint for App {}
+
+impl command_use_case::create_data_point::HasCreateDataPoint for App {
+    fn create_data_point(
+        &self,
+    ) -> Arc<dyn command_use_case::create_data_point::CreateDataPoint + Send + Sync> {
         Arc::new(self.clone())
     }
 }
@@ -40,6 +53,12 @@ impl command_use_case::delete_chart::HasDeleteChart for App {
 impl command_use_case::port::HasChartRepository for App {
     fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
         self.chart_repository.clone()
+    }
+}
+
+impl command_use_case::port::HasDataPointRepository for App {
+    fn data_point_repository(&self) -> Arc<dyn DataPointRepository + Send + Sync> {
+        self.data_point_repository.clone()
     }
 }
 

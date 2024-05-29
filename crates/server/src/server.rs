@@ -2,7 +2,8 @@ mod app;
 mod handler;
 
 use command_use_case::{
-    create_chart::HasCreateChart, delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
+    create_chart::HasCreateChart, create_data_point::HasCreateDataPoint,
+    delete_chart::HasDeleteChart, update_chart::HasUpdateChart,
 };
 use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
 
@@ -19,6 +20,7 @@ pub enum Error {
 pub async fn run<
     T: Clone
         + HasCreateChart
+        + HasCreateDataPoint
         + HasDeleteChart
         + HasGetChart
         + HasListCharts
