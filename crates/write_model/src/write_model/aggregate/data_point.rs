@@ -2,8 +2,8 @@ pub mod event;
 
 use crate::value_object::{ChartId, DataPointId, DateTime, Version, XValue, YValue};
 
-pub use self::event::Event;
-use self::event::{Created, Deleted, EventData, Updated};
+use self::event::{Created, Deleted, Updated};
+pub use self::event::{Event, EventData};
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {
