@@ -50,6 +50,16 @@ impl command_use_case::delete_chart::HasDeleteChart for App {
     }
 }
 
+impl command_use_case::delete_data_point::DeleteDataPoint for App {}
+
+impl command_use_case::delete_data_point::HasDeleteDataPoint for App {
+    fn delete_data_point(
+        &self,
+    ) -> Arc<dyn command_use_case::delete_data_point::DeleteDataPoint + Send + Sync> {
+        Arc::new(self.clone())
+    }
+}
+
 impl command_use_case::port::HasChartRepository for App {
     fn chart_repository(&self) -> Arc<dyn ChartRepository + Send + Sync> {
         self.chart_repository.clone()
