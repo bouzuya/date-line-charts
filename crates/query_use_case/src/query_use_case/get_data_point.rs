@@ -71,7 +71,7 @@ mockall::mock! {
 }
 
 pub trait HasGetDataPoint {
-    fn data_point_chart(&self) -> Arc<dyn GetDataPoint + Send + Sync>;
+    fn get_data_point(&self) -> Arc<dyn GetDataPoint + Send + Sync>;
 }
 
 #[cfg(test)]

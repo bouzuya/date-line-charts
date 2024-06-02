@@ -3,6 +3,7 @@ mod create_data_point;
 mod delete_chart;
 mod delete_data_point;
 mod get_chart;
+mod get_data_point;
 mod get_root;
 mod list_charts;
 mod update_chart;
@@ -15,7 +16,9 @@ use command_use_case::{
     delete_chart::HasDeleteChart, delete_data_point::HasDeleteDataPoint,
     update_chart::HasUpdateChart, update_data_point::HasUpdateDataPoint,
 };
-use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
+use query_use_case::{
+    get_chart::HasGetChart, get_data_point::HasGetDataPoint, list_charts::HasListCharts,
+};
 
 pub fn router<
     T: Clone
@@ -24,6 +27,7 @@ pub fn router<
         + HasDeleteChart
         + HasDeleteDataPoint
         + HasGetChart
+        + HasGetDataPoint
         + HasListCharts
         + HasUpdateChart
         + HasUpdateDataPoint
@@ -37,6 +41,7 @@ pub fn router<
         .merge(delete_chart::router())
         .merge(delete_data_point::router())
         .merge(get_chart::router())
+        .merge(get_data_point::router())
         .merge(get_root::router())
         .merge(list_charts::router())
         .merge(update_chart::router())

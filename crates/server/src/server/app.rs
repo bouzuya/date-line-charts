@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use command_use_case::port::{ChartRepository, DataPointRepository};
-use query_use_case::port::ChartReader;
+use query_use_case::port::{ChartReader, DataPointReader};
 
 #[derive(Clone)]
 pub struct App {
     chart_reader: Arc<dyn ChartReader + Send + Sync>,
     chart_repository: Arc<dyn ChartRepository + Send + Sync>,
+    data_point_reader: Arc<dyn DataPointReader + Send + Sync>,
     data_point_repository: Arc<dyn DataPointRepository + Send + Sync>,
 }
 
@@ -14,11 +15,13 @@ impl App {
     pub fn new(
         chart_reader: Arc<dyn ChartReader + Send + Sync>,
         chart_repository: Arc<dyn ChartRepository + Send + Sync>,
+        data_point_reader: Arc<dyn DataPointReader + Send + Sync>,
         data_point_repository: Arc<dyn DataPointRepository + Send + Sync>,
     ) -> Self {
         Self {
             chart_reader,
             chart_repository,
+            data_point_reader,
             data_point_repository,
         }
     }
@@ -90,16 +93,20 @@ impl command_use_case::update_data_point::HasUpdateDataPoint for App {
 
 impl command_use_case::update_data_point::UpdateDataPoint for App {}
 
-impl query_use_case::port::HasChartReader for App {
-    fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
-        self.chart_reader.clone()
-    }
-}
-
 impl query_use_case::get_chart::GetChart for App {}
 
 impl query_use_case::get_chart::HasGetChart for App {
     fn get_chart(&self) -> Arc<dyn query_use_case::get_chart::GetChart + Send + Sync> {
+        Arc::new(self.clone())
+    }
+}
+
+impl query_use_case::get_data_point::GetDataPoint for App {}
+
+impl query_use_case::get_data_point::HasGetDataPoint for App {
+    fn get_data_point(
+        &self,
+    ) -> Arc<dyn query_use_case::get_data_point::GetDataPoint + Send + Sync> {
         Arc::new(self.clone())
     }
 }
@@ -111,3 +118,15 @@ impl query_use_case::list_charts::HasListCharts for App {
 }
 
 impl query_use_case::list_charts::ListCharts for App {}
+
+impl query_use_case::port::HasChartReader for App {
+    fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
+        self.chart_reader.clone()
+    }
+}
+
+impl query_use_case::port::HasDataPointReader for App {
+    fn data_point_reader(&self) -> Arc<dyn query_use_case::port::DataPointReader + Send + Sync> {
+        self.data_point_reader.clone()
+    }
+}

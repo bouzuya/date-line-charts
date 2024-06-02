@@ -6,7 +6,9 @@ use command_use_case::{
     delete_chart::HasDeleteChart, delete_data_point::HasDeleteDataPoint,
     update_chart::HasUpdateChart, update_data_point::HasUpdateDataPoint,
 };
-use query_use_case::{get_chart::HasGetChart, list_charts::HasListCharts};
+use query_use_case::{
+    get_chart::HasGetChart, get_data_point::HasGetDataPoint, list_charts::HasListCharts,
+};
 
 pub use self::app::App;
 
@@ -25,6 +27,7 @@ pub async fn run<
         + HasDeleteChart
         + HasDeleteDataPoint
         + HasGetChart
+        + HasGetDataPoint
         + HasListCharts
         + HasUpdateChart
         + HasUpdateDataPoint
