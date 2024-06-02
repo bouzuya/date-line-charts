@@ -70,6 +70,16 @@ impl command_use_case::update_chart::HasUpdateChart for App {
 
 impl command_use_case::update_chart::UpdateChart for App {}
 
+impl command_use_case::update_data_point::HasUpdateDataPoint for App {
+    fn update_data_point(
+        &self,
+    ) -> Arc<dyn command_use_case::update_data_point::UpdateDataPoint + Send + Sync> {
+        Arc::new(self.clone())
+    }
+}
+
+impl command_use_case::update_data_point::UpdateDataPoint for App {}
+
 impl query_use_case::port::HasChartReader for App {
     fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
         self.chart_reader.clone()
