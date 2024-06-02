@@ -119,6 +119,16 @@ impl query_use_case::list_charts::HasListCharts for App {
 
 impl query_use_case::list_charts::ListCharts for App {}
 
+impl query_use_case::list_data_points::HasListDataPoints for App {
+    fn list_data_points(
+        &self,
+    ) -> Arc<dyn query_use_case::list_data_points::ListDataPoints + Send + Sync> {
+        Arc::new(self.clone())
+    }
+}
+
+impl query_use_case::list_data_points::ListDataPoints for App {}
+
 impl query_use_case::port::HasChartReader for App {
     fn chart_reader(&self) -> Arc<dyn query_use_case::port::ChartReader + Send + Sync> {
         self.chart_reader.clone()

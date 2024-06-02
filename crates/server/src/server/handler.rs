@@ -6,6 +6,7 @@ mod get_chart;
 mod get_data_point;
 mod get_root;
 mod list_charts;
+mod list_data_points;
 mod update_chart;
 mod update_data_point;
 
@@ -18,6 +19,7 @@ use command_use_case::{
 };
 use query_use_case::{
     get_chart::HasGetChart, get_data_point::HasGetDataPoint, list_charts::HasListCharts,
+    list_data_points::HasListDataPoints,
 };
 
 pub fn router<
@@ -29,6 +31,7 @@ pub fn router<
         + HasGetChart
         + HasGetDataPoint
         + HasListCharts
+        + HasListDataPoints
         + HasUpdateChart
         + HasUpdateDataPoint
         + Send
@@ -44,6 +47,7 @@ pub fn router<
         .merge(get_data_point::router())
         .merge(get_root::router())
         .merge(list_charts::router())
+        .merge(list_data_points::router())
         .merge(update_chart::router())
         .merge(update_data_point::router())
 }

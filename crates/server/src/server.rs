@@ -8,6 +8,7 @@ use command_use_case::{
 };
 use query_use_case::{
     get_chart::HasGetChart, get_data_point::HasGetDataPoint, list_charts::HasListCharts,
+    list_data_points::HasListDataPoints,
 };
 
 pub use self::app::App;
@@ -29,6 +30,7 @@ pub async fn run<
         + HasGetChart
         + HasGetDataPoint
         + HasListCharts
+        + HasListDataPoints
         + HasUpdateChart
         + HasUpdateDataPoint
         + Send
