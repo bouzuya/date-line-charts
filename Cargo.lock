@@ -292,6 +292,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
 
 [[package]]
+name = "file_system_store"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "command_use_case",
+ "query_use_case",
+ "serde_json",
+ "tokio",
+ "write_model",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
