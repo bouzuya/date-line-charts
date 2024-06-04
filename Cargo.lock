@@ -298,6 +298,7 @@ dependencies = [
  "async-trait",
  "command_use_case",
  "query_use_case",
+ "serde",
  "serde_json",
  "tokio",
  "write_model",
