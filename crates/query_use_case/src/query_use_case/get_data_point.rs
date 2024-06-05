@@ -38,7 +38,7 @@ impl From<DataPointQueryData> for Output {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("data point get")]
-    DataPointGet(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DataPointGet(#[source] crate::query_use_case::port::data_point_reader::Error),
     #[error("data point id")]
     DataPointId(#[source] write_model::value_object::data_point_id::Error),
 }

@@ -25,7 +25,7 @@ pub enum Error {
     #[error("chart id")]
     ChartId(#[source] write_model::value_object::chart_id::Error),
     #[error("data point list")]
-    DataPointList(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DataPointList(#[source] crate::query_use_case::port::data_point_reader::Error),
 }
 
 #[async_trait::async_trait]

@@ -108,7 +108,7 @@ mod tests {
             let mut mock = MockGetDataPoint::new();
             mock.expect_execute().return_once(|_| {
                 Err(query_use_case::get_data_point::Error::DataPointGet(
-                    build_error(),
+                    query_use_case::port::data_point_reader::Error::from(build_error()),
                 ))
             });
             Arc::new(mock)

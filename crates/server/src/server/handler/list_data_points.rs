@@ -126,7 +126,7 @@ mod tests {
             let mut mock = MockListDataPoints::new();
             mock.expect_execute().return_once(|_| {
                 Err(query_use_case::list_data_points::Error::DataPointList(
-                    build_error(),
+                    query_use_case::port::data_point_reader::Error::from(build_error()),
                 ))
             });
             Arc::new(mock)

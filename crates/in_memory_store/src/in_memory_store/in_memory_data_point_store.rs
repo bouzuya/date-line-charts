@@ -19,11 +19,8 @@ impl InMemoryDataPointStore {
             query_data: Arc::new(Mutex::new(Vec::new())),
         }
     }
-}
 
-#[async_trait::async_trait]
-impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
-    async fn get(
+    async fn get_impl(
         &self,
         id: DataPointId,
     ) -> Result<query_use_case::port::DataPointQueryData, Box<dyn std::error::Error + Send + Sync>>
@@ -38,7 +35,7 @@ impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
             .ok_or("not found")?)
     }
 
-    async fn list(
+    async fn list_impl(
         &self,
         chart_id: ChartId,
     ) -> Result<
@@ -51,6 +48,33 @@ impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
             .filter(|data_point| data_point.chart_id == chart_id)
             .cloned()
             .collect::<Vec<query_use_case::port::DataPointQueryData>>())
+    }
+}
+
+#[async_trait::async_trait]
+impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
+    async fn get(
+        &self,
+        id: DataPointId,
+    ) -> Result<
+        query_use_case::port::DataPointQueryData,
+        query_use_case::port::data_point_reader::Error,
+    > {
+        self.get_impl(id)
+            .await
+            .map_err(query_use_case::port::data_point_reader::Error::from)
+    }
+
+    async fn list(
+        &self,
+        chart_id: ChartId,
+    ) -> Result<
+        Vec<query_use_case::port::DataPointQueryData>,
+        query_use_case::port::data_point_reader::Error,
+    > {
+        self.list_impl(chart_id)
+            .await
+            .map_err(query_use_case::port::data_point_reader::Error::from)
     }
 }
 

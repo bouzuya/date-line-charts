@@ -10,16 +10,14 @@ pub struct DataPointQueryData {
     pub y_value: YValue,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error(transparent)]
+pub struct Error(#[from] Box<dyn std::error::Error + Send + Sync>);
+
 #[async_trait::async_trait]
 pub trait DataPointReader {
-    async fn get(
-        &self,
-        id: DataPointId,
-    ) -> Result<DataPointQueryData, Box<dyn std::error::Error + Send + Sync>>;
-    async fn list(
-        &self,
-        chart_id: ChartId,
-    ) -> Result<Vec<DataPointQueryData>, Box<dyn std::error::Error + Send + Sync>>;
+    async fn get(&self, id: DataPointId) -> Result<DataPointQueryData, Error>;
+    async fn list(&self, chart_id: ChartId) -> Result<Vec<DataPointQueryData>, Error>;
 }
 
 pub trait HasDataPointReader {
