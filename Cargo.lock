@@ -497,6 +497,7 @@ dependencies = [
  "async-trait",
  "command_use_case",
  "query_use_case",
+ "thiserror",
  "tokio",
  "write_model",
 ]

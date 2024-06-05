@@ -18,7 +18,7 @@ pub struct Chart {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("chart list")]
-    ChartList(#[source] Box<dyn std::error::Error + Send + Sync>),
+    ChartList(#[source] crate::port::chart_reader::Error),
 }
 
 #[async_trait::async_trait]

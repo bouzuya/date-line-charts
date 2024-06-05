@@ -7,5 +7,6 @@ publish = false
 async-trait.workspace = true
 command_use_case.workspace = true
 query_use_case.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 write_model.workspace = true

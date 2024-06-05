@@ -93,8 +93,11 @@ mod tests {
         let mut mocks = Mocks::with_happy_path_behavior(chart.clone());
         mocks.list_charts = {
             let mut mock = MockListCharts::new();
-            mock.expect_execute()
-                .return_once(|_| Err(query_use_case::list_charts::Error::ChartList(build_error())));
+            mock.expect_execute().return_once(|_| {
+                Err(query_use_case::list_charts::Error::ChartList(
+                    query_use_case::port::chart_reader::Error::from(build_error()),
+                ))
+            });
             Arc::new(mock)
         };
         let app = router().with_state(mocks.clone());

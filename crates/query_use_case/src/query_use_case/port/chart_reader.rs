@@ -9,13 +9,14 @@ pub struct ChartQueryData {
     pub title: String,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error(transparent)]
+pub struct Error(#[from] Box<dyn std::error::Error + Send + Sync>);
+
 #[async_trait::async_trait]
 pub trait ChartReader {
-    async fn get(
-        &self,
-        id: ChartId,
-    ) -> Result<ChartQueryData, Box<dyn std::error::Error + Send + Sync>>;
-    async fn list(&self) -> Result<Vec<ChartQueryData>, Box<dyn std::error::Error + Send + Sync>>;
+    async fn get(&self, id: ChartId) -> Result<ChartQueryData, Error>;
+    async fn list(&self) -> Result<Vec<ChartQueryData>, Error>;
 }
 
 pub trait HasChartReader {
