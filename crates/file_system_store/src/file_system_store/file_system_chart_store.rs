@@ -91,11 +91,8 @@ impl FileSystemChartStore {
             dir,
         }
     }
-}
 
-#[async_trait::async_trait]
-impl command_use_case::port::ChartRepository for FileSystemChartStore {
-    async fn find(
+    async fn find_impl(
         &self,
         id: ChartId,
     ) -> Result<Option<Chart>, Box<dyn std::error::Error + Send + Sync>> {
@@ -131,12 +128,24 @@ impl command_use_case::port::ChartRepository for FileSystemChartStore {
             },
         )
     }
+}
+
+#[async_trait::async_trait]
+impl command_use_case::port::ChartRepository for FileSystemChartStore {
+    async fn find(
+        &self,
+        id: ChartId,
+    ) -> Result<Option<Chart>, command_use_case::port::chart_repository::Error> {
+        self.find_impl(id)
+            .await
+            .map_err(command_use_case::port::chart_repository::Error::from)
+    }
 
     async fn store(
         &self,
         _current: Option<Version>,
         _events: &[Event],
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), command_use_case::port::chart_repository::Error> {
         todo!()
     }
 }

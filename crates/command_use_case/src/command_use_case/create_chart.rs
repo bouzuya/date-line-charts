@@ -19,7 +19,7 @@ pub enum Error {
     #[error("chart create")]
     ChartCreate(#[source] write_model::aggregate::chart::Error),
     #[error("chart store")]
-    ChartStore(#[source] Box<dyn std::error::Error + Send + Sync>),
+    ChartStore(#[source] crate::command_use_case::port::chart_repository::Error),
 }
 
 #[async_trait::async_trait]

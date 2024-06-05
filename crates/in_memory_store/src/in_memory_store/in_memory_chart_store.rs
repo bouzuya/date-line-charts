@@ -20,6 +20,17 @@ impl InMemoryChartStore {
         }
     }
 
+    async fn find_impl(
+        &self,
+        id: ChartId,
+    ) -> Result<Option<Chart>, Box<dyn std::error::Error + Send + Sync>> {
+        let command_data = self.command_data.lock().await;
+        Ok(match command_data.get(&id) {
+            None => None,
+            Some(events) => Some(Chart::from_events(events)?),
+        })
+    }
+
     async fn get_impl(
         &self,
         id: ChartId,
@@ -32,46 +43,8 @@ impl InMemoryChartStore {
             .cloned()
             .ok_or("not found")?)
     }
-}
 
-#[async_trait::async_trait]
-impl query_use_case::port::ChartReader for InMemoryChartStore {
-    async fn get(
-        &self,
-        id: ChartId,
-    ) -> Result<query_use_case::port::ChartQueryData, query_use_case::port::chart_reader::Error>
-    {
-        self.get_impl(id)
-            .await
-            .map_err(query_use_case::port::chart_reader::Error::from)
-    }
-
-    async fn list(
-        &self,
-    ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
-    {
-        let query_data = self.query_data.lock().await;
-        Ok(query_data
-            .iter()
-            .cloned()
-            .collect::<Vec<query_use_case::port::ChartQueryData>>())
-    }
-}
-
-#[async_trait::async_trait]
-impl command_use_case::port::ChartRepository for InMemoryChartStore {
-    async fn find(
-        &self,
-        id: ChartId,
-    ) -> Result<Option<Chart>, Box<dyn std::error::Error + Send + Sync>> {
-        let command_data = self.command_data.lock().await;
-        Ok(match command_data.get(&id) {
-            None => None,
-            Some(events) => Some(Chart::from_events(events)?),
-        })
-    }
-
-    async fn store(
+    async fn store_impl(
         &self,
         current: Option<Version>,
         events: &[Event],
@@ -123,5 +96,51 @@ impl command_use_case::port::ChartRepository for InMemoryChartStore {
         }
 
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl query_use_case::port::ChartReader for InMemoryChartStore {
+    async fn get(
+        &self,
+        id: ChartId,
+    ) -> Result<query_use_case::port::ChartQueryData, query_use_case::port::chart_reader::Error>
+    {
+        self.get_impl(id)
+            .await
+            .map_err(query_use_case::port::chart_reader::Error::from)
+    }
+
+    async fn list(
+        &self,
+    ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
+    {
+        let query_data = self.query_data.lock().await;
+        Ok(query_data
+            .iter()
+            .cloned()
+            .collect::<Vec<query_use_case::port::ChartQueryData>>())
+    }
+}
+
+#[async_trait::async_trait]
+impl command_use_case::port::ChartRepository for InMemoryChartStore {
+    async fn find(
+        &self,
+        id: ChartId,
+    ) -> Result<Option<Chart>, command_use_case::port::chart_repository::Error> {
+        self.find_impl(id)
+            .await
+            .map_err(command_use_case::port::chart_repository::Error::from)
+    }
+
+    async fn store(
+        &self,
+        current: Option<Version>,
+        events: &[Event],
+    ) -> Result<(), command_use_case::port::chart_repository::Error> {
+        self.store_impl(current, events)
+            .await
+            .map_err(command_use_case::port::chart_repository::Error::from)
     }
 }

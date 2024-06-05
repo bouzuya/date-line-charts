@@ -69,7 +69,7 @@ mod tests {
             let mut mock = MockDeleteChart::new();
             mock.expect_execute().return_once(|_| {
                 Err(command_use_case::delete_chart::Error::ChartStore(
-                    build_error(),
+                    command_use_case::port::chart_repository::Error::from(build_error()),
                 ))
             });
             Arc::new(mock)

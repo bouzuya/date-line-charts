@@ -16,13 +16,13 @@ pub struct Output;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("chart find")]
-    ChartFind(#[source] Box<dyn std::error::Error + Send + Sync>),
+    ChartFind(#[source] crate::command_use_case::port::chart_repository::Error),
     #[error("chart id")]
     ChartId(#[source] write_model::value_object::chart_id::Error),
     #[error("chart not found")]
     ChartNotFound(write_model::value_object::ChartId),
     #[error("chart store")]
-    ChartStore(#[source] Box<dyn std::error::Error + Send + Sync>),
+    ChartStore(#[source] crate::command_use_case::port::chart_repository::Error),
     #[error("chart update")]
     ChartUpdate(#[source] write_model::aggregate::chart::Error),
 }
