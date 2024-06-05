@@ -74,7 +74,7 @@ mod tests {
             let mut mock = MockDeleteDataPoint::new();
             mock.expect_execute().return_once(|_| {
                 Err(command_use_case::delete_data_point::Error::DataPointStore(
-                    build_error(),
+                    command_use_case::port::data_point_repository::Error::from(build_error()),
                 ))
             });
             Arc::new(mock)

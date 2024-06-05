@@ -16,13 +16,13 @@ pub struct Output;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("data point find")]
-    DataPointFind(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DataPointFind(#[source] crate::command_use_case::port::data_point_repository::Error),
     #[error("data point id")]
     DataPointId(#[source] write_model::value_object::data_point_id::Error),
     #[error("data point not found")]
     DataPointNotFound(write_model::value_object::DataPointId),
     #[error("data point store")]
-    DataPointStore(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DataPointStore(#[source] crate::command_use_case::port::data_point_repository::Error),
     #[error("data point update")]
     DataPointUpdate(#[source] write_model::aggregate::data_point::Error),
 }

@@ -30,7 +30,7 @@ pub enum Error {
     #[error("data point create")]
     DataPointCreate(#[source] write_model::aggregate::data_point::Error),
     #[error("data point store")]
-    DataPointStore(#[source] Box<dyn std::error::Error + Send + Sync>),
+    DataPointStore(#[source] crate::command_use_case::port::data_point_repository::Error),
     #[error("x value")]
     XValue(#[source] write_model::value_object::x_value::Error),
 }

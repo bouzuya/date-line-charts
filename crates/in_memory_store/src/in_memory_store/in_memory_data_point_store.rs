@@ -20,6 +20,17 @@ impl InMemoryDataPointStore {
         }
     }
 
+    async fn find_impl(
+        &self,
+        id: DataPointId,
+    ) -> Result<Option<DataPoint>, Box<dyn std::error::Error + Send + Sync>> {
+        let command_data = self.command_data.lock().await;
+        Ok(match command_data.get(&id) {
+            None => None,
+            Some(events) => Some(DataPoint::from_events(events)?),
+        })
+    }
+
     async fn get_impl(
         &self,
         id: DataPointId,
@@ -49,49 +60,8 @@ impl InMemoryDataPointStore {
             .cloned()
             .collect::<Vec<query_use_case::port::DataPointQueryData>>())
     }
-}
 
-#[async_trait::async_trait]
-impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
-    async fn get(
-        &self,
-        id: DataPointId,
-    ) -> Result<
-        query_use_case::port::DataPointQueryData,
-        query_use_case::port::data_point_reader::Error,
-    > {
-        self.get_impl(id)
-            .await
-            .map_err(query_use_case::port::data_point_reader::Error::from)
-    }
-
-    async fn list(
-        &self,
-        chart_id: ChartId,
-    ) -> Result<
-        Vec<query_use_case::port::DataPointQueryData>,
-        query_use_case::port::data_point_reader::Error,
-    > {
-        self.list_impl(chart_id)
-            .await
-            .map_err(query_use_case::port::data_point_reader::Error::from)
-    }
-}
-
-#[async_trait::async_trait]
-impl command_use_case::port::DataPointRepository for InMemoryDataPointStore {
-    async fn find(
-        &self,
-        id: DataPointId,
-    ) -> Result<Option<DataPoint>, Box<dyn std::error::Error + Send + Sync>> {
-        let command_data = self.command_data.lock().await;
-        Ok(match command_data.get(&id) {
-            None => None,
-            Some(events) => Some(DataPoint::from_events(events)?),
-        })
-    }
-
-    async fn store(
+    async fn store_impl(
         &self,
         current: Option<Version>,
         events: &[Event],
@@ -147,5 +117,54 @@ impl command_use_case::port::DataPointRepository for InMemoryDataPointStore {
         }
 
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
+    async fn get(
+        &self,
+        id: DataPointId,
+    ) -> Result<
+        query_use_case::port::DataPointQueryData,
+        query_use_case::port::data_point_reader::Error,
+    > {
+        self.get_impl(id)
+            .await
+            .map_err(query_use_case::port::data_point_reader::Error::from)
+    }
+
+    async fn list(
+        &self,
+        chart_id: ChartId,
+    ) -> Result<
+        Vec<query_use_case::port::DataPointQueryData>,
+        query_use_case::port::data_point_reader::Error,
+    > {
+        self.list_impl(chart_id)
+            .await
+            .map_err(query_use_case::port::data_point_reader::Error::from)
+    }
+}
+
+#[async_trait::async_trait]
+impl command_use_case::port::DataPointRepository for InMemoryDataPointStore {
+    async fn find(
+        &self,
+        id: DataPointId,
+    ) -> Result<Option<DataPoint>, command_use_case::port::data_point_repository::Error> {
+        self.find_impl(id)
+            .await
+            .map_err(command_use_case::port::data_point_repository::Error::from)
+    }
+
+    async fn store(
+        &self,
+        current: Option<Version>,
+        events: &[Event],
+    ) -> Result<(), command_use_case::port::data_point_repository::Error> {
+        self.store_impl(current, events)
+            .await
+            .map_err(command_use_case::port::data_point_repository::Error::from)
     }
 }
