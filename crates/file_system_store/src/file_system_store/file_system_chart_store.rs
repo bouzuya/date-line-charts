@@ -116,6 +116,7 @@ type CommandData = BTreeMap<ChartId, Vec<Event>>;
 pub struct FileSystemChartStore {
     command_data: Arc<Mutex<Option<CommandData>>>,
     dir: PathBuf,
+    query_data: Arc<Mutex<Vec<query_use_case::port::ChartQueryData>>>,
 }
 
 impl FileSystemChartStore {
@@ -123,6 +124,7 @@ impl FileSystemChartStore {
         Self {
             command_data: Arc::new(Mutex::new(None)),
             dir,
+            query_data: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -144,6 +146,19 @@ impl FileSystemChartStore {
                 Some(events) => Some(Chart::from_events(events)?),
             },
         )
+    }
+
+    async fn get_impl(
+        &self,
+        id: ChartId,
+    ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let query_data = self.query_data.lock().await;
+        Ok(query_data
+            .iter()
+            .find(|chart| chart.id == id)
+            .cloned()
+            .ok_or("not found")?)
     }
 
     fn load(&self) -> Result<CommandData, Box<dyn std::error::Error + Send + Sync>> {
@@ -229,6 +244,30 @@ impl command_use_case::port::ChartRepository for FileSystemChartStore {
         self.store_impl(current, events)
             .await
             .map_err(command_use_case::port::chart_repository::Error::from)
+    }
+}
+
+#[async_trait::async_trait]
+impl query_use_case::port::ChartReader for FileSystemChartStore {
+    async fn get(
+        &self,
+        id: ChartId,
+    ) -> Result<query_use_case::port::ChartQueryData, query_use_case::port::chart_reader::Error>
+    {
+        self.get_impl(id)
+            .await
+            .map_err(query_use_case::port::chart_reader::Error::from)
+    }
+
+    async fn list(
+        &self,
+    ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
+    {
+        let query_data = self.query_data.lock().await;
+        Ok(query_data
+            .iter()
+            .cloned()
+            .collect::<Vec<query_use_case::port::ChartQueryData>>())
     }
 }
 
