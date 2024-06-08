@@ -111,20 +111,21 @@ impl TryFrom<EventJson> for Event {
     }
 }
 
-type CommandData = BTreeMap<ChartId, Vec<Event>>;
+struct Cache {
+    command_data: BTreeMap<ChartId, Vec<Event>>,
+    query_data: Vec<query_use_case::port::ChartQueryData>,
+}
 
 pub struct FileSystemChartStore {
-    command_data: Arc<Mutex<Option<CommandData>>>,
+    cache: Arc<Mutex<Option<Cache>>>,
     dir: PathBuf,
-    query_data: Arc<Mutex<Vec<query_use_case::port::ChartQueryData>>>,
 }
 
 impl FileSystemChartStore {
     pub fn new(dir: PathBuf) -> Self {
         Self {
-            command_data: Arc::new(Mutex::new(None)),
+            cache: Arc::new(Mutex::new(None)),
             dir,
-            query_data: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -132,14 +133,15 @@ impl FileSystemChartStore {
         &self,
         id: ChartId,
     ) -> Result<Option<Chart>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut command_data = self.command_data.lock().await;
-        if command_data.is_none() {
-            *command_data = Some(self.load()?);
+        let mut cache = self.cache.lock().await;
+        if cache.is_none() {
+            *cache = Some(self.load()?);
         }
         Ok(
-            match command_data
+            match cache
                 .as_ref()
-                .expect("command_data to be Some")
+                .expect("cache to be Some")
+                .command_data
                 .get(&id)
             {
                 None => None,
@@ -153,22 +155,43 @@ impl FileSystemChartStore {
         id: ChartId,
     ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
     {
-        let query_data = self.query_data.lock().await;
-        Ok(query_data
+        let mut cache = self.cache.lock().await;
+        if cache.is_none() {
+            *cache = Some(self.load()?);
+        }
+        Ok(cache
+            .as_ref()
+            .expect("cache to be Some")
+            .query_data
             .iter()
             .find(|chart| chart.id == id)
             .cloned()
             .ok_or("not found")?)
     }
 
-    fn load(&self) -> Result<CommandData, Box<dyn std::error::Error + Send + Sync>> {
+    async fn list_impl(
+        &self,
+    ) -> Result<Vec<query_use_case::port::ChartQueryData>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let mut cache = self.cache.lock().await;
+        if cache.is_none() {
+            *cache = Some(self.load()?);
+        }
+        Ok(cache.as_ref().expect("cache to be Some").query_data.clone())
+    }
+
+    fn load(&self) -> Result<Cache, Box<dyn std::error::Error + Send + Sync>> {
         let path_buf = self.dir.join("charts.jsonl");
         if !path_buf.exists() {
-            return Ok(BTreeMap::new());
+            return Ok(Cache {
+                command_data: BTreeMap::new(),
+                query_data: Vec::new(),
+            });
         }
         let file = File::open(path_buf)?;
         let mut reader = BufReader::new(file);
-        let mut loaded = BTreeMap::new();
+        let mut command_data = BTreeMap::new();
+        let mut query_data = Vec::new();
         let mut buf = String::new();
         while let Ok(size) = reader.read_line(&mut buf) {
             if size == 0 {
@@ -177,12 +200,17 @@ impl FileSystemChartStore {
             let event_json = serde_json::from_str::<EventJson>(&buf)?;
             let event = Event::try_from(event_json)?;
             buf.clear();
-            loaded
+            Self::apply_event_to_query_data(&mut query_data, &event)?;
+            command_data
                 .entry(event.stream_id)
                 .or_insert_with(Vec::new)
                 .push(event);
         }
-        Ok(loaded)
+
+        Ok(Cache {
+            command_data,
+            query_data,
+        })
     }
 
     async fn store_impl(
@@ -190,37 +218,76 @@ impl FileSystemChartStore {
         current: Option<Version>,
         events: &[Event],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut command_data = self.command_data.lock().await;
-        if command_data.is_none() {
-            *command_data = Some(self.load()?);
+        let mut cache = self.cache.lock().await;
+        if cache.is_none() {
+            *cache = Some(self.load()?);
         }
-        let command_data = command_data.as_mut().expect("command_data to be Some");
+        let cache = cache.as_mut().expect("cache to be Some");
         if events.is_empty() {
             return Ok(());
         }
         match current {
             None => {
                 let id = events[0].stream_id;
-                command_data.insert(id, events.to_vec());
+                cache.command_data.insert(id, events.to_vec());
             }
             Some(_version) => {
                 let id = events[0].stream_id;
-                let stored_events = command_data.get_mut(&id).ok_or("not found")?;
+                let stored_events = cache.command_data.get_mut(&id).ok_or("not found")?;
                 // TODO: check version
                 stored_events.extend(events.to_vec());
             }
         }
-        let data = events
+        let mut data = events
             .iter()
             .map(|event| serde_json::to_string(&EventJson::from(event)))
             .collect::<serde_json::Result<Vec<String>>>()?
             .join("\n");
+        data.push('\n');
         let path_buf = self.dir.join("charts.jsonl");
         let mut file = OpenOptions::new()
-            .create_new(true)
+            .create(true)
             .append(true)
             .open(path_buf)?;
         file.write_all(data.as_bytes())?;
+
+        // query writer
+        let query_data = &mut cache.query_data;
+        for event in events {
+            Self::apply_event_to_query_data(query_data, event)?;
+        }
+
+        Ok(())
+    }
+
+    fn apply_event_to_query_data(
+        query_data: &mut Vec<query_use_case::port::ChartQueryData>,
+        event: &Event,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        match &event.data {
+            write_model::aggregate::chart::EventData::Created(data) => {
+                query_data.push(query_use_case::port::ChartQueryData {
+                    created_at: event.at,
+                    id: event.stream_id,
+                    title: data.title.clone(),
+                });
+            }
+            write_model::aggregate::chart::EventData::Deleted(_) => {
+                if let Some(index) = query_data
+                    .iter()
+                    .position(|chart| chart.id == event.stream_id)
+                {
+                    query_data.remove(index);
+                }
+            }
+            write_model::aggregate::chart::EventData::Updated(data) => {
+                let index = query_data
+                    .iter()
+                    .position(|chart| chart.id == event.stream_id)
+                    .ok_or("not found")?;
+                query_data[index].title.clone_from(&data.title);
+            }
+        }
         Ok(())
     }
 }
@@ -263,11 +330,9 @@ impl query_use_case::port::ChartReader for FileSystemChartStore {
         &self,
     ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
     {
-        let query_data = self.query_data.lock().await;
-        Ok(query_data
-            .iter()
-            .cloned()
-            .collect::<Vec<query_use_case::port::ChartQueryData>>())
+        self.list_impl()
+            .await
+            .map_err(query_use_case::port::chart_reader::Error::from)
     }
 }
 
