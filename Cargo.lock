@@ -280,6 +280,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "file_system_store",
  "in_memory_store",
  "server",
  "tokio",

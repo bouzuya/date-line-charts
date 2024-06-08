@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use write_model::value_object::{ChartId, DateTime};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ChartQueryData {
     pub created_at: DateTime,
     pub id: ChartId,
