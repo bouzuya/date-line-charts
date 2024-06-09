@@ -10,14 +10,16 @@ pub struct Input {
     pub data_point_id: String,
 }
 
-pub struct Output {
+pub struct Output(pub Option<OutputItem>);
+
+pub struct OutputItem {
     pub chart_id: String,
     pub created_at: String,
     pub x_value: String,
     pub y_value: u32,
 }
 
-impl From<DataPointQueryData> for Output {
+impl From<DataPointQueryData> for OutputItem {
     fn from(
         DataPointQueryData {
             chart_id,
@@ -48,11 +50,13 @@ pub trait GetDataPoint: HasDataPointReader {
     async fn execute(&self, Input { data_point_id }: Input) -> Result<Output, Error> {
         let data_point_reader = self.data_point_reader();
         let data_point_id = DataPointId::from_str(&data_point_id).map_err(Error::DataPointId)?;
-        data_point_reader
-            .get(data_point_id)
-            .await
-            .map(Output::from)
-            .map_err(Error::DataPointGet)
+        Ok(Output(
+            data_point_reader
+                .get(data_point_id)
+                .await
+                .map_err(Error::DataPointGet)?
+                .map(OutputItem::from),
+        ))
     }
 }
 
@@ -82,12 +86,12 @@ mod tests {
     fn test() {
         let mut mock = MockGetDataPoint::new();
         mock.expect_execute().return_once(|_| {
-            Ok(Output {
+            Ok(Output(Some(OutputItem {
                 chart_id: "chart_id".to_string(),
                 created_at: "2021-08-21T00:00:00Z".to_string(),
                 x_value: "2020-01-02".to_string(),
                 y_value: 2,
-            })
+            })))
         });
     }
 

@@ -34,16 +34,17 @@ impl InMemoryDataPointStore {
     async fn get_impl(
         &self,
         id: DataPointId,
-    ) -> Result<query_use_case::port::DataPointQueryData, Box<dyn std::error::Error + Send + Sync>>
-    {
+    ) -> Result<
+        Option<query_use_case::port::DataPointQueryData>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let query_data = self.query_data.lock().await;
         Ok(query_data
             .iter()
             .find(|data_point| {
                 data_point.chart_id == id.chart_id() && data_point.x_value == id.x_value()
             })
-            .cloned()
-            .ok_or("not found")?)
+            .cloned())
     }
 
     async fn list_impl(
@@ -126,7 +127,7 @@ impl query_use_case::port::DataPointReader for InMemoryDataPointStore {
         &self,
         id: DataPointId,
     ) -> Result<
-        query_use_case::port::DataPointQueryData,
+        Option<query_use_case::port::DataPointQueryData>,
         query_use_case::port::data_point_reader::Error,
     > {
         self.get_impl(id)

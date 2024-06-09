@@ -26,14 +26,14 @@ struct ResponseBody {
     y_value: u32,
 }
 
-impl From<query_use_case::get_data_point::Output> for ResponseBody {
+impl From<query_use_case::get_data_point::OutputItem> for ResponseBody {
     fn from(
-        query_use_case::get_data_point::Output {
+        query_use_case::get_data_point::OutputItem {
             chart_id,
             created_at,
             x_value,
             y_value,
-        }: query_use_case::get_data_point::Output,
+        }: query_use_case::get_data_point::OutputItem,
     ) -> Self {
         let id = format!("{}:{}", chart_id, x_value);
         Self {
@@ -51,11 +51,14 @@ async fn handler<T: HasGetDataPoint>(
     Path(path_parameters): Path<PathParameters>,
 ) -> Result<Json<ResponseBody>, StatusCode> {
     let use_case = state.get_data_point();
-    let output = use_case
+    let query_use_case::get_data_point::Output(output_item) = use_case
         .execute(query_use_case::get_data_point::Input::from(path_parameters))
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(ResponseBody::from(output)))
+    match output_item {
+        Some(output) => Ok(Json(ResponseBody::from(output))),
+        None => Err(StatusCode::NOT_FOUND),
+    }
 }
 
 pub fn router<T: Clone + HasGetDataPoint + Send + Sync + 'static>() -> Router<T> {
@@ -136,12 +139,14 @@ mod tests {
                     input.data_point_id,
                     format!("{}:{}", data_point.chart_id, data_point.x_value)
                 );
-                Ok(query_use_case::get_data_point::Output {
-                    chart_id: data_point.chart_id,
-                    created_at: data_point.created_at,
-                    x_value: data_point.x_value,
-                    y_value: data_point.y_value,
-                })
+                Ok(query_use_case::get_data_point::Output(Some(
+                    query_use_case::get_data_point::OutputItem {
+                        chart_id: data_point.chart_id,
+                        created_at: data_point.created_at,
+                        x_value: data_point.x_value,
+                        y_value: data_point.y_value,
+                    },
+                )))
             });
             Self {
                 get_data_point: Arc::new(get_data_point),
