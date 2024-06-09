@@ -10,7 +10,9 @@ pub struct Input {
     pub chart_id: String,
 }
 
-pub struct Output {
+pub struct Output(pub Option<OutputItem>);
+
+pub struct OutputItem {
     pub created_at: String,
     pub id: String,
     pub title: String,
@@ -29,21 +31,23 @@ pub trait GetChart: HasChartReader {
     async fn execute(&self, input: Input) -> Result<Output, Error> {
         let chart_reader = self.chart_reader();
         let chart_id = ChartId::from_str(&input.chart_id).map_err(Error::ChartId)?;
-        chart_reader
-            .get(chart_id)
-            .await
-            .map(
-                |ChartQueryData {
-                     created_at,
-                     id,
-                     title,
-                 }| Output {
-                    created_at: created_at.to_string(),
-                    id: id.to_string(),
-                    title,
-                },
-            )
-            .map_err(Error::ChartGet)
+        Ok(Output(
+            chart_reader
+                .get(chart_id)
+                .await
+                .map_err(Error::ChartGet)?
+                .map(
+                    |ChartQueryData {
+                         created_at,
+                         id,
+                         title,
+                     }| OutputItem {
+                        created_at: created_at.to_string(),
+                        id: id.to_string(),
+                        title,
+                    },
+                ),
+        ))
     }
 }
 
@@ -73,11 +77,11 @@ mod tests {
     fn test() {
         let mut mock = MockGetChart::new();
         mock.expect_execute().return_once(|_| {
-            Ok(Output {
+            Ok(Output(Some(OutputItem {
                 created_at: "created_at".to_string(),
                 id: "id".to_string(),
                 title: "title".to_string(),
-            })
+            })))
         });
     }
 

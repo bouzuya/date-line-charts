@@ -15,7 +15,7 @@ pub struct Error(#[from] Box<dyn std::error::Error + Send + Sync>);
 
 #[async_trait::async_trait]
 pub trait ChartReader {
-    async fn get(&self, id: ChartId) -> Result<ChartQueryData, Error>;
+    async fn get(&self, id: ChartId) -> Result<Option<ChartQueryData>, Error>;
     async fn list(&self) -> Result<Vec<ChartQueryData>, Error>;
 }
 

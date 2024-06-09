@@ -34,14 +34,12 @@ impl InMemoryChartStore {
     async fn get_impl(
         &self,
         id: ChartId,
-    ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
-    {
+    ) -> Result<
+        Option<query_use_case::port::ChartQueryData>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let query_data = self.query_data.lock().await;
-        Ok(query_data
-            .iter()
-            .find(|chart| chart.id == id)
-            .cloned()
-            .ok_or("not found")?)
+        Ok(query_data.iter().find(|chart| chart.id == id).cloned())
     }
 
     async fn store_impl(
@@ -104,8 +102,10 @@ impl query_use_case::port::ChartReader for InMemoryChartStore {
     async fn get(
         &self,
         id: ChartId,
-    ) -> Result<query_use_case::port::ChartQueryData, query_use_case::port::chart_reader::Error>
-    {
+    ) -> Result<
+        Option<query_use_case::port::ChartQueryData>,
+        query_use_case::port::chart_reader::Error,
+    > {
         self.get_impl(id)
             .await
             .map_err(query_use_case::port::chart_reader::Error::from)

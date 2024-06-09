@@ -24,13 +24,13 @@ struct ResponseBody {
     title: String,
 }
 
-impl From<query_use_case::get_chart::Output> for ResponseBody {
+impl From<query_use_case::get_chart::OutputItem> for ResponseBody {
     fn from(
-        query_use_case::get_chart::Output {
+        query_use_case::get_chart::OutputItem {
             created_at,
             id,
             title,
-        }: query_use_case::get_chart::Output,
+        }: query_use_case::get_chart::OutputItem,
     ) -> Self {
         Self {
             created_at,
@@ -45,11 +45,14 @@ async fn handler<T: HasGetChart>(
     Path(path_parameters): Path<PathParameters>,
 ) -> Result<Json<ResponseBody>, StatusCode> {
     let use_case = state.get_chart();
-    let output = use_case
+    let query_use_case::get_chart::Output(output_item) = use_case
         .execute(query_use_case::get_chart::Input::from(path_parameters))
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(ResponseBody::from(output)))
+    match output_item {
+        Some(output) => Ok(Json(ResponseBody::from(output))),
+        None => Err(StatusCode::NOT_FOUND),
+    }
 }
 
 pub fn router<T: Clone + HasGetChart + Send + Sync + 'static>() -> Router<T> {
@@ -121,11 +124,13 @@ mod tests {
             let mut get_chart = MockGetChart::new();
             get_chart.expect_execute().return_once(move |input| {
                 assert_eq!(input.chart_id, chart.id);
-                Ok(query_use_case::get_chart::Output {
-                    created_at: chart.created_at,
-                    id: chart.id,
-                    title: chart.title,
-                })
+                Ok(query_use_case::get_chart::Output(Some(
+                    query_use_case::get_chart::OutputItem {
+                        created_at: chart.created_at,
+                        id: chart.id,
+                        title: chart.title,
+                    },
+                )))
             });
             Self {
                 get_chart: Arc::new(get_chart),

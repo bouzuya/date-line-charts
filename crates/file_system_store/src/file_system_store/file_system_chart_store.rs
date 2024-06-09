@@ -153,8 +153,10 @@ impl FileSystemChartStore {
     async fn get_impl(
         &self,
         id: ChartId,
-    ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
-    {
+    ) -> Result<
+        Option<query_use_case::port::ChartQueryData>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut cache = self.cache.lock().await;
         if cache.is_none() {
             *cache = Some(self.load()?);
@@ -165,8 +167,7 @@ impl FileSystemChartStore {
             .query_data
             .iter()
             .find(|chart| chart.id == id)
-            .cloned()
-            .ok_or("not found")?)
+            .cloned())
     }
 
     async fn list_impl(
@@ -319,8 +320,10 @@ impl query_use_case::port::ChartReader for FileSystemChartStore {
     async fn get(
         &self,
         id: ChartId,
-    ) -> Result<query_use_case::port::ChartQueryData, query_use_case::port::chart_reader::Error>
-    {
+    ) -> Result<
+        Option<query_use_case::port::ChartQueryData>,
+        query_use_case::port::chart_reader::Error,
+    > {
         self.get_impl(id)
             .await
             .map_err(query_use_case::port::chart_reader::Error::from)
