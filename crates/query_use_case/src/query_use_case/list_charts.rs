@@ -15,6 +15,22 @@ pub struct Chart {
     pub title: String,
 }
 
+impl From<ChartQueryData> for Chart {
+    fn from(
+        ChartQueryData {
+            created_at,
+            id,
+            title,
+        }: ChartQueryData,
+    ) -> Self {
+        Self {
+            created_at: created_at.to_string(),
+            id: id.to_string(),
+            title,
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("chart list")]
@@ -28,24 +44,7 @@ pub trait ListCharts: HasChartReader {
         chart_reader
             .list()
             .await
-            .map(|charts| {
-                Output(
-                    charts
-                        .into_iter()
-                        .map(
-                            |ChartQueryData {
-                                 created_at,
-                                 id,
-                                 title,
-                             }| Chart {
-                                created_at: created_at.to_string(),
-                                id: id.to_string(),
-                                title,
-                            },
-                        )
-                        .collect(),
-                )
-            })
+            .map(|charts| Output(charts.into_iter().map(Chart::from).collect()))
             .map_err(Error::ChartList)
     }
 }

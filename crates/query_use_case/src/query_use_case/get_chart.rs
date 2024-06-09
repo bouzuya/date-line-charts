@@ -18,6 +18,22 @@ pub struct OutputItem {
     pub title: String,
 }
 
+impl From<ChartQueryData> for OutputItem {
+    fn from(
+        ChartQueryData {
+            created_at,
+            id,
+            title,
+        }: ChartQueryData,
+    ) -> Self {
+        Self {
+            created_at: created_at.to_string(),
+            id: id.to_string(),
+            title,
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("chart get")]
@@ -36,17 +52,7 @@ pub trait GetChart: HasChartReader {
                 .get(chart_id)
                 .await
                 .map_err(Error::ChartGet)?
-                .map(
-                    |ChartQueryData {
-                         created_at,
-                         id,
-                         title,
-                     }| OutputItem {
-                        created_at: created_at.to_string(),
-                        id: id.to_string(),
-                        title,
-                    },
-                ),
+                .map(OutputItem::from),
         ))
     }
 }

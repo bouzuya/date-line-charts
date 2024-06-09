@@ -20,6 +20,24 @@ pub struct DataPoint {
     pub y_value: u32,
 }
 
+impl From<DataPointQueryData> for DataPoint {
+    fn from(
+        DataPointQueryData {
+            chart_id,
+            created_at,
+            x_value,
+            y_value,
+        }: DataPointQueryData,
+    ) -> Self {
+        Self {
+            chart_id: chart_id.to_string(),
+            created_at: created_at.to_string(),
+            x_value: x_value.to_string(),
+            y_value: u32::from(y_value),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("chart id")]
@@ -36,24 +54,7 @@ pub trait ListDataPoints: HasDataPointReader {
         data_point_reader
             .list(chart_id)
             .await
-            .map(|data_points| {
-                data_points
-                    .into_iter()
-                    .map(
-                        |DataPointQueryData {
-                             chart_id,
-                             created_at,
-                             x_value,
-                             y_value,
-                         }| DataPoint {
-                            chart_id: chart_id.to_string(),
-                            created_at: created_at.to_string(),
-                            x_value: x_value.to_string(),
-                            y_value: u32::from(y_value),
-                        },
-                    )
-                    .collect()
-            })
+            .map(|data_points| data_points.into_iter().map(DataPoint::from).collect())
             .map(Output)
             .map_err(Error::DataPointList)
     }
