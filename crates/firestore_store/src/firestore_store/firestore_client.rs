@@ -1,3 +1,65 @@
+use std::str::FromStr;
+
+pub use firestore_path::DocumentName;
+pub use firestore_path::DocumentPath;
+pub use serde_firestore_value::Timestamp;
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Document<T> {
+    pub name: DocumentName,
+    pub fields: T,
+    pub create_time: Timestamp,
+    pub update_time: Timestamp,
+}
+
+fn document_from_google_api_proto_document<T>(
+    google_api_proto::google::firestore::v1::Document {
+        name,
+        fields,
+        create_time,
+        update_time,
+    }: google_api_proto::google::firestore::v1::Document,
+) -> Result<Document<T>, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    Ok(Document::<T> {
+        name: DocumentName::from_str(&name).expect("document.name to be valid document_name"),
+        fields: serde_firestore_value::from_value::<T>(
+            &google_api_proto::google::firestore::v1::Value {
+                value_type: Some(
+                    google_api_proto::google::firestore::v1::value::ValueType::MapValue(
+                        google_api_proto::google::firestore::v1::MapValue { fields },
+                    ),
+                ),
+            },
+        )
+        .map_err(InnerError::Deserialize)?,
+        create_time: serde_firestore_value::Timestamp::from(
+            create_time.expect("document.create_time to be set"),
+        ),
+        update_time: serde_firestore_value::Timestamp::from(
+            update_time.expect("document.update_time to be set"),
+        ),
+    })
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(transparent)]
+pub struct Error(#[from] InnerError);
+
+#[derive(Debug, thiserror::Error)]
+enum InnerError {
+    #[error("deserialize")]
+    Deserialize(#[source] serde_firestore_value::Error),
+    #[error("header value")]
+    HeaderValue(#[source] tonic::metadata::errors::InvalidMetadataValue),
+    #[error("status")]
+    Status(#[source] tonic::Status),
+    #[error("token")]
+    Token(#[source] google_cloud_auth::Error),
+}
+
 type MyInterceptor =
     Box<dyn FnMut(tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status>>;
 type Client = google_api_proto::google::firestore::v1::firestore_client::FirestoreClient<
@@ -32,11 +94,36 @@ impl FirestoreClient {
         })
     }
 
-    async fn client(&self) -> Result<Client, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn get_document<T>(&self, document_path: &DocumentPath) -> Result<Document<T>, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut client = self.client().await?;
+        let document = client
+            .get_document(
+                google_api_proto::google::firestore::v1::GetDocumentRequest {
+                    name: document_path.to_string(),
+                    mask: None,
+                    consistency_selector: None,
+                },
+            )
+            .await
+            .map_err(InnerError::Status)?
+            .into_inner();
+        document_from_google_api_proto_document::<T>(document)
+    }
+
+    async fn client(&self) -> Result<Client, Error> {
         let inner = self.channel.clone();
-        let token = self.credential.access_token().await?.value;
+        let token = self
+            .credential
+            .access_token()
+            .await
+            .map_err(InnerError::Token)?
+            .value;
         let mut metadata_value =
-            tonic::metadata::AsciiMetadataValue::try_from(format!("Bearer {}", token))?;
+            tonic::metadata::AsciiMetadataValue::try_from(format!("Bearer {}", token))
+                .map_err(InnerError::HeaderValue)?;
         metadata_value.set_sensitive(true);
         let interceptor: MyInterceptor = Box::new(
             move |mut request: tonic::Request<()>| -> Result<tonic::Request<()>, tonic::Status> {

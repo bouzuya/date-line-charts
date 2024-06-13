@@ -6,9 +6,12 @@ publish = false
 [dependencies]
 async-trait.workspace = true
 command_use_case.workspace = true
+firestore-path = "0.9.18"
 google-api-proto = { version = "1.673.0", features = ["google-firestore-v1"] }
 google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "2d4bcb893e2acb9bca2775371243b37edc9bf94e" }
 query_use_case.workspace = true
+serde = { version = "1.0.203", features = ["derive"] }
+serde-firestore-value = "0.8.1"
 thiserror.workspace = true
 tokio.workspace = true
 tonic = { version = "0.11", features = ["tls-webpki-roots"] }
