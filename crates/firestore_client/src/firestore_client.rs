@@ -1,5 +1,9 @@
 use std::str::FromStr;
 
+pub use firestore_path as path;
+use firestore_path::DatabaseName;
+
+pub use firestore_path::CollectionPath;
 pub use firestore_path::DocumentName;
 pub use firestore_path::DocumentPath;
 pub use serde_firestore_value::Timestamp;
@@ -54,6 +58,8 @@ enum InnerError {
     Deserialize(#[source] serde_firestore_value::Error),
     #[error("header value")]
     HeaderValue(#[source] tonic::metadata::errors::InvalidMetadataValue),
+    #[error("project_id")]
+    ProjectId(#[source] firestore_path::Error),
     #[error("status")]
     Status(#[source] tonic::Status),
     #[error("token")]
@@ -70,11 +76,16 @@ type Client = google_api_proto::google::firestore::v1::firestore_client::Firesto
 pub struct FirestoreClient {
     channel: tonic::transport::Channel,
     credential: google_cloud_auth::Credential,
+    database_name: firestore_path::DatabaseName,
 }
 
 impl FirestoreClient {
-    pub async fn new<I>(scopes: I) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
+    pub async fn new<S, I>(
+        project_id: S,
+        scopes: I,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
     where
+        S: Into<String>,
         I: IntoIterator,
         I::Item: Into<String>,
     {
@@ -88,13 +99,16 @@ impl FirestoreClient {
             .scopes(scopes.into_iter().map(Into::into).collect::<Vec<String>>())
             .build()?;
         let credential = google_cloud_auth::Credential::find_default(credential_config).await?;
+        let database_name =
+            DatabaseName::from_project_id(project_id.into()).map_err(InnerError::ProjectId)?;
         Ok(Self {
             channel,
             credential,
+            database_name,
         })
     }
 
-    pub async fn get_document<T>(&self, document_path: &DocumentPath) -> Result<Document<T>, Error>
+    pub async fn get_document<T>(&self, document_path: DocumentPath) -> Result<Document<T>, Error>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -102,7 +116,11 @@ impl FirestoreClient {
         let document = client
             .get_document(
                 google_api_proto::google::firestore::v1::GetDocumentRequest {
-                    name: document_path.to_string(),
+                    name: self
+                        .database_name
+                        .doc(document_path)
+                        .expect("document_path to be valid document_name")
+                        .to_string(),
                     mask: None,
                     consistency_selector: None,
                 },
@@ -111,6 +129,57 @@ impl FirestoreClient {
             .map_err(InnerError::Status)?
             .into_inner();
         document_from_google_api_proto_document::<T>(document)
+    }
+
+    pub async fn list_all_documents<T>(
+        &self,
+        collection_path: &CollectionPath,
+    ) -> Result<Vec<Document<T>>, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut client = self.client().await?;
+        let mut page_token = String::default();
+        let mut all_documents = Vec::default();
+        loop {
+            let google_api_proto::google::firestore::v1::ListDocumentsResponse {
+                documents,
+                next_page_token,
+            } = client
+                .list_documents(
+                    google_api_proto::google::firestore::v1::ListDocumentsRequest {
+                        parent: collection_path
+                            .parent()
+                            .map(|document_path| {
+                                self.database_name
+                                    .doc(document_path.clone())
+                                    .expect("document_path to be valid document_name")
+                                    .to_string()
+                            })
+                            .unwrap_or_else(|| self.database_name.to_string()),
+                        collection_id: collection_path.collection_id().to_string(),
+                        page_size: 65535,
+                        page_token: page_token.clone(),
+                        order_by: String::default(),
+                        mask: None,
+                        show_missing: false,
+                        consistency_selector: None,
+                    },
+                )
+                .await
+                .map_err(InnerError::Status)?
+                .into_inner();
+            let new_documents = documents
+                .into_iter()
+                .map(document_from_google_api_proto_document::<T>)
+                .collect::<Result<Vec<Document<T>>, Error>>()?;
+            all_documents.extend(new_documents);
+            page_token = next_page_token;
+            if page_token.is_empty() {
+                break;
+            }
+        }
+        Ok(all_documents)
     }
 
     async fn client(&self) -> Result<Client, Error> {
