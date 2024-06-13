@@ -7,9 +7,12 @@ anyhow = "1.0.86"
 async-trait = "0.1.80"
 command_use_case = { path = "crates/command_use_case" }
 file_system_store = { path = "crates/file_system_store" }
+firestore_client = { path = "crates/firestore_client" }
+firestore_store = { path = "crates/firestore_store" }
 in_memory_store = { path = "crates/in_memory_store" }
 mockall = { version = "0.12.1" }
 query_use_case = { path = "crates/query_use_case" }
+serde = { version = "1.0.203", features = ["derive"] }
 server = { path = "crates/server" }
 thiserror = "1.0.61"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }

@@ -67,13 +67,13 @@ type Client = google_api_proto::google::firestore::v1::firestore_client::Firesto
 >;
 
 #[derive(Clone)]
-pub(crate) struct FirestoreClient {
+pub struct FirestoreClient {
     channel: tonic::transport::Channel,
     credential: google_cloud_auth::Credential,
 }
 
 impl FirestoreClient {
-    pub(crate) async fn new<I>(scopes: I) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
+    pub async fn new<I>(scopes: I) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
     where
         I: IntoIterator,
         I::Item: Into<String>,

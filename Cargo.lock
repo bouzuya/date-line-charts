@@ -554,20 +554,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "firestore_store"
+name = "firestore_client"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "command_use_case",
  "firestore-path",
  "google-api-proto",
  "google-cloud-auth",
- "query_use_case",
  "serde",
  "serde-firestore-value",
  "thiserror",
  "tokio",
  "tonic",
+]
+
+[[package]]
+name = "firestore_store"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "command_use_case",
+ "firestore_client",
+ "query_use_case",
+ "serde",
+ "thiserror",
+ "tokio",
  "write_model",
 ]
 
