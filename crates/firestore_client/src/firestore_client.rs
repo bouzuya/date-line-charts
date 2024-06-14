@@ -67,7 +67,7 @@ enum InnerError {
 }
 
 type MyInterceptor =
-    Box<dyn FnMut(tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status>>;
+    Box<dyn FnMut(tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> + Send + Sync>;
 type Client = google_api_proto::google::firestore::v1::firestore_client::FirestoreClient<
     tonic::service::interceptor::InterceptedService<tonic::transport::Channel, MyInterceptor>,
 >;
