@@ -7,9 +7,13 @@ publish = false
 async-trait.workspace = true
 firestore-path = "0.9.18"
 google-api-proto = { version = "1.673.0", features = ["google-firestore-v1"] }
-google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "2d4bcb893e2acb9bca2775371243b37edc9bf94e" }
+google-cloud-auth = { version = "0.15.0", default-features = false, features = [
+  "rustls-tls",
+] }
+google-cloud-token = "0.1.2"
 serde = { version = "1.0.203", features = ["derive"] }
 serde-firestore-value = "0.8.1"
+serde_json = "1.0.117"
 thiserror.workspace = true
 tokio.workspace = true
 tonic = { version = "0.11", features = ["tls-webpki-roots"] }

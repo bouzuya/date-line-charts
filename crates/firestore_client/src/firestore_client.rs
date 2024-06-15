@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub use firestore_path as path;
 use firestore_path::DatabaseName;
@@ -63,7 +64,7 @@ enum InnerError {
     #[error("status")]
     Status(#[source] tonic::Status),
     #[error("token")]
-    Token(#[source] google_cloud_auth::Error),
+    Token(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 type MyInterceptor =
@@ -75,36 +76,40 @@ type Client = google_api_proto::google::firestore::v1::firestore_client::Firesto
 #[derive(Clone)]
 pub struct FirestoreClient {
     channel: tonic::transport::Channel,
-    credential: google_cloud_auth::Credential,
     database_name: firestore_path::DatabaseName,
+    token_source: Arc<dyn google_cloud_token::TokenSource>,
 }
 
 impl FirestoreClient {
-    pub async fn new<S, I>(
-        project_id: S,
-        scopes: I,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
-    where
-        S: Into<String>,
-        I: IntoIterator,
-        I::Item: Into<String>,
-    {
+    pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let default_token_source_provider =
+            google_cloud_auth::token::DefaultTokenSourceProvider::new(
+                google_cloud_auth::project::Config {
+                    scopes: Some(&[
+                        "https://www.googleapis.com/auth/cloud-platform",
+                        "https://www.googleapis.com/auth/datastore",
+                    ]),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        let token_source =
+            google_cloud_token::TokenSourceProvider::token_source(&default_token_source_provider);
+        let project_id = default_token_source_provider
+            .project_id
+            .ok_or("project_id not found")?;
         let channel = tonic::transport::Channel::from_static("https://firestore.googleapis.com")
             .tls_config(
                 tonic::transport::ClientTlsConfig::new().domain_name("firestore.googleapis.com"),
             )?
             .connect()
             .await?;
-        let credential_config = google_cloud_auth::CredentialConfig::builder()
-            .scopes(scopes.into_iter().map(Into::into).collect::<Vec<String>>())
-            .build()?;
-        let credential = google_cloud_auth::Credential::find_default(credential_config).await?;
         let database_name =
-            DatabaseName::from_project_id(project_id.into()).map_err(InnerError::ProjectId)?;
+            DatabaseName::from_project_id(project_id).map_err(InnerError::ProjectId)?;
         Ok(Self {
             channel,
-            credential,
             database_name,
+            token_source,
         })
     }
 
@@ -184,12 +189,7 @@ impl FirestoreClient {
 
     async fn client(&self) -> Result<Client, Error> {
         let inner = self.channel.clone();
-        let token = self
-            .credential
-            .access_token()
-            .await
-            .map_err(InnerError::Token)?
-            .value;
+        let token = self.token_source.token().await.map_err(InnerError::Token)?;
         let mut metadata_value =
             tonic::metadata::AsciiMetadataValue::try_from(format!("Bearer {}", token))
                 .map_err(InnerError::HeaderValue)?;
