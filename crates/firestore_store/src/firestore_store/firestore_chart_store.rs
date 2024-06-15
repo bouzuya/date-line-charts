@@ -7,14 +7,7 @@ pub struct FirestoreChartStore(FirestoreClient);
 
 impl FirestoreChartStore {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let project_id = "demo-project1";
-        Ok(Self(
-            FirestoreClient::new(
-                project_id,
-                ["https://www.googleapis.com/auth/cloud-platform"],
-            )
-            .await?,
-        ))
+        Ok(Self(FirestoreClient::new().await?))
     }
 
     async fn get_impl(
