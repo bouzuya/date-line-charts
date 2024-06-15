@@ -113,7 +113,7 @@ impl FirestoreClient {
         })
     }
 
-    pub async fn get_document<T>(&self, document_path: DocumentPath) -> Result<Document<T>, Error>
+    pub async fn get_document<T>(&self, document_path: &DocumentPath) -> Result<Document<T>, Error>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -123,7 +123,7 @@ impl FirestoreClient {
                 google_api_proto::google::firestore::v1::GetDocumentRequest {
                     name: self
                         .database_name
-                        .doc(document_path)
+                        .doc(document_path.clone())
                         .expect("document_path to be valid document_name")
                         .to_string(),
                     mask: None,

@@ -1,9 +1,36 @@
 use std::str::FromStr;
 
-use firestore_client::{CollectionPath, Document, DocumentPath, FirestoreClient, Timestamp};
+use firestore_client::{Document, FirestoreClient, Timestamp};
 use write_model::value_object::{ChartId, DateTime};
 
 pub struct FirestoreChartStore(FirestoreClient);
+
+mod path {
+    use std::str::FromStr as _;
+
+    use firestore_client::{
+        path::{CollectionId, DocumentId},
+        CollectionPath, DocumentPath,
+    };
+    use write_model::value_object::ChartId;
+
+    pub fn chart_collection() -> CollectionPath {
+        CollectionPath::new(None, chart_collection_id())
+    }
+
+    pub fn chart_collection_id() -> CollectionId {
+        CollectionId::from_str("charts").expect("chart collection id to be valid collection id")
+    }
+
+    pub fn chart_document(chart_id: ChartId) -> DocumentPath {
+        chart_collection()
+            .doc(
+                DocumentId::from_str(&chart_id.to_string())
+                    .expect("chart id to be valid document id"),
+            )
+            .expect("chart document path to be valid document path")
+    }
+}
 
 impl FirestoreChartStore {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
@@ -19,9 +46,7 @@ impl FirestoreChartStore {
     > {
         let document = self
             .0
-            .get_document::<ChartDocumentData>(
-                DocumentPath::from_str(&format!("charts/{}", id)).unwrap(),
-            )
+            .get_document::<ChartDocumentData>(&path::chart_document(id))
             .await?;
         let document = query_data_from_document(document)?;
         // FIXME: not found => None
@@ -34,7 +59,7 @@ impl FirestoreChartStore {
     {
         let documents = self
             .0
-            .list_all_documents::<ChartDocumentData>(&CollectionPath::from_str("charts").unwrap())
+            .list_all_documents::<ChartDocumentData>(&path::chart_collection())
             .await?;
         let documents = documents
             .into_iter()
