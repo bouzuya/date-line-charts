@@ -1,36 +1,8 @@
-use std::str::FromStr;
-
-use firestore_client::{Document, FirestoreClient, Timestamp};
-use write_model::value_object::{ChartId, DateTime};
+use firestore_client::FirestoreClient;
+use schema::ChartDocumentData;
+use write_model::value_object::ChartId;
 
 pub struct FirestoreChartStore(FirestoreClient);
-
-mod path {
-    use std::str::FromStr as _;
-
-    use firestore_client::{
-        path::{CollectionId, DocumentId},
-        CollectionPath, DocumentPath,
-    };
-    use write_model::value_object::ChartId;
-
-    pub fn chart_collection() -> CollectionPath {
-        CollectionPath::new(None, chart_collection_id())
-    }
-
-    pub fn chart_collection_id() -> CollectionId {
-        CollectionId::from_str("charts").expect("chart collection id to be valid collection id")
-    }
-
-    pub fn chart_document(chart_id: ChartId) -> DocumentPath {
-        chart_collection()
-            .doc(
-                DocumentId::from_str(&chart_id.to_string())
-                    .expect("chart id to be valid document id"),
-            )
-            .expect("chart document path to be valid document path")
-    }
-}
 
 impl FirestoreChartStore {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
@@ -48,7 +20,7 @@ impl FirestoreChartStore {
             .0
             .get_document::<ChartDocumentData>(&path::chart_document(id))
             .await?;
-        let document = query_data_from_document(document)?;
+        let document = converter::query_data_from_document(document)?;
         // FIXME: not found => None
         Ok(Some(document))
     }
@@ -63,7 +35,7 @@ impl FirestoreChartStore {
             .await?;
         let documents = documents
             .into_iter()
-            .map(query_data_from_document)
+            .map(converter::query_data_from_document)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(documents)
     }
@@ -93,19 +65,60 @@ impl query_use_case::port::ChartReader for FirestoreChartStore {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct ChartDocumentData {
-    created_at: Timestamp,
-    title: String,
+mod converter {
+    use std::str::FromStr as _;
+
+    use firestore_client::Document;
+    use write_model::value_object::{ChartId, DateTime};
+
+    use super::schema::ChartDocumentData;
+
+    pub(crate) fn query_data_from_document(
+        document: Document<ChartDocumentData>,
+    ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
+    {
+        Ok(query_use_case::port::ChartQueryData {
+            // FIXME: date time format
+            created_at: DateTime::now(), // document.fields.created_at
+            id: ChartId::from_str(document.name.document_id().as_ref())?,
+            title: document.fields.title,
+        })
+    }
 }
 
-fn query_data_from_document(
-    document: Document<ChartDocumentData>,
-) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(query_use_case::port::ChartQueryData {
-        // FIXME: date time format
-        created_at: DateTime::now(), // document.fields.created_at
-        id: ChartId::from_str(document.name.document_id().as_ref())?,
-        title: document.fields.title,
-    })
+mod path {
+    use std::str::FromStr as _;
+
+    use firestore_client::{
+        path::{CollectionId, DocumentId},
+        CollectionPath, DocumentPath,
+    };
+    use write_model::value_object::ChartId;
+
+    pub(crate) fn chart_collection() -> CollectionPath {
+        CollectionPath::new(None, chart_collection_id())
+    }
+
+    pub(crate) fn chart_collection_id() -> CollectionId {
+        CollectionId::from_str("charts").expect("chart collection id to be valid collection id")
+    }
+
+    pub(crate) fn chart_document(chart_id: ChartId) -> DocumentPath {
+        chart_collection()
+            .doc(
+                DocumentId::from_str(&chart_id.to_string())
+                    .expect("chart id to be valid document id"),
+            )
+            .expect("chart document path to be valid document path")
+    }
+}
+
+mod schema {
+    use firestore_client::Timestamp;
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub(crate) struct ChartDocumentData {
+        pub(crate) created_at: Timestamp,
+        pub(crate) title: String,
+    }
 }
