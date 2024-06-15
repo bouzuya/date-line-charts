@@ -16,13 +16,11 @@ impl FirestoreChartStore {
         Option<query_use_case::port::ChartQueryData>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        let document = self
-            .0
+        self.0
             .get_document::<ChartDocumentData>(&path::chart_document(id))
-            .await?;
-        let document = converter::query_data_from_document(document)?;
-        // FIXME: not found => None
-        Ok(Some(document))
+            .await?
+            .map(converter::query_data_from_document)
+            .transpose()
     }
 
     async fn list_impl(

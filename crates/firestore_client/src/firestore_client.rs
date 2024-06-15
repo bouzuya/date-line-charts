@@ -113,12 +113,15 @@ impl FirestoreClient {
         })
     }
 
-    pub async fn get_document<T>(&self, document_path: &DocumentPath) -> Result<Document<T>, Error>
+    pub async fn get_document<T>(
+        &self,
+        document_path: &DocumentPath,
+    ) -> Result<Option<Document<T>>, Error>
     where
         T: serde::de::DeserializeOwned,
     {
         let mut client = self.client().await?;
-        let document = client
+        client
             .get_document(
                 google_api_proto::google::firestore::v1::GetDocumentRequest {
                     name: self
@@ -131,9 +134,13 @@ impl FirestoreClient {
                 },
             )
             .await
-            .map_err(InnerError::Status)?
-            .into_inner();
-        document_from_google_api_proto_document::<T>(document)
+            .map(|response| Some(response.into_inner()))
+            .or_else(|status| match status.code() {
+                tonic::Code::NotFound => Ok(None),
+                _ => Err(InnerError::Status(status)),
+            })?
+            .map(document_from_google_api_proto_document::<T>)
+            .transpose()
     }
 
     pub async fn list_all_documents<T>(
