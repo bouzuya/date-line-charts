@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -7,7 +8,6 @@ use firestore_path::DatabaseName;
 pub use firestore_path::CollectionPath;
 pub use firestore_path::DocumentName;
 pub use firestore_path::DocumentPath;
-use google_api_proto::google::firestore::v1::CreateDocumentRequest;
 pub use serde_firestore_value::Timestamp;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -121,41 +121,36 @@ impl FirestoreClient {
     pub async fn create_document<T>(
         &self,
         document_path: &DocumentPath,
-        document_data: T,
+        document_data: &T,
     ) -> Result<(), Error>
     where
         T: serde::Serialize,
     {
         let mut client = self.client().await?;
         client
-            .create_document(CreateDocumentRequest {
-                parent: document_path
-                    .parent()
-                    .parent()
-                    .map(|document_path| {
-                        self.database_name
-                            .doc(document_path.clone())
-                            .expect("document_path to be valid document_name")
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| self.database_name.root_document_name().to_string()),
-                collection_id: document_path.collection_id().to_string(),
-                document_id: document_path.document_id().to_string(),
-                document: Some(google_api_proto::google::firestore::v1::Document {
-                    name: String::default(),
-                    fields: if let google_api_proto::google::firestore::v1::Value {
-                        value_type: Some(google_api_proto::google::firestore::v1::value::ValueType::MapValue(map_value)),
-                    } = serde_firestore_value::to_value(&document_data).map_err(InnerError::Serialize)?
-                    {
-                        Ok(map_value.fields)
-                    } else {
-                        Err(InnerError::NoMapValue)
-                    }?,
-                    create_time: None,
-                    update_time: None,
-                }),
-                mask: None,
-            })
+            .create_document(
+                google_api_proto::google::firestore::v1::CreateDocumentRequest {
+                    parent: document_path
+                        .parent()
+                        .parent()
+                        .map(|document_path| {
+                            self.database_name
+                                .doc(document_path.clone())
+                                .expect("document_path to be valid document_name")
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| self.database_name.root_document_name().to_string()),
+                    collection_id: document_path.collection_id().to_string(),
+                    document_id: document_path.document_id().to_string(),
+                    document: Some(google_api_proto::google::firestore::v1::Document {
+                        name: String::default(),
+                        fields: fields_from_document_data(&document_data)?,
+                        create_time: None,
+                        update_time: None,
+                    }),
+                    mask: None,
+                },
+            )
             .await
             .map(|response| response.into_inner())
             .map_err(InnerError::Status)?;
@@ -243,6 +238,39 @@ impl FirestoreClient {
         Ok(all_documents)
     }
 
+    pub async fn update_document<T>(
+        &self,
+        document_path: &DocumentPath,
+        document_data: &T,
+    ) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
+        let mut client = self.client().await?;
+        client
+            .update_document(
+                google_api_proto::google::firestore::v1::UpdateDocumentRequest {
+                    document: Some(google_api_proto::google::firestore::v1::Document {
+                        name: self
+                            .database_name
+                            .doc(document_path.clone())
+                            .expect("document_path to be valid document_name")
+                            .to_string(),
+                        fields: fields_from_document_data(document_data)?,
+                        create_time: None,
+                        update_time: None,
+                    }),
+                    update_mask: None,
+                    mask: None,
+                    current_document: None,
+                },
+            )
+            .await
+            .map(|response| response.into_inner())
+            .map_err(InnerError::Status)?;
+        Ok(())
+    }
+
     async fn client(&self) -> Result<Client, Error> {
         let inner = self.channel.clone();
         let token = self.token_source.token().await.map_err(InnerError::Token)?;
@@ -261,5 +289,22 @@ impl FirestoreClient {
         let client =
             google_api_proto::google::firestore::v1::firestore_client::FirestoreClient::with_interceptor(inner,interceptor);
         Ok(client)
+    }
+}
+
+fn fields_from_document_data<T>(
+    document_data: &T,
+) -> Result<BTreeMap<String, google_api_proto::google::firestore::v1::Value>, InnerError>
+where
+    T: serde::Serialize,
+{
+    if let google_api_proto::google::firestore::v1::Value {
+        value_type:
+            Some(google_api_proto::google::firestore::v1::value::ValueType::MapValue(map_value)),
+    } = serde_firestore_value::to_value(document_data).map_err(InnerError::Serialize)?
+    {
+        Ok(map_value.fields)
+    } else {
+        Err(InnerError::NoMapValue)
     }
 }
