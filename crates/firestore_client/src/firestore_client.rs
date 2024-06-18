@@ -8,6 +8,8 @@ use firestore_path::DatabaseName;
 pub use firestore_path::CollectionPath;
 pub use firestore_path::DocumentName;
 pub use firestore_path::DocumentPath;
+pub use firestore_structured_query::FieldPath;
+pub use firestore_structured_query::Query;
 pub use serde_firestore_value::Timestamp;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -233,6 +235,65 @@ impl FirestoreClient {
             page_token = next_page_token;
             if page_token.is_empty() {
                 break;
+            }
+        }
+        Ok(all_documents)
+    }
+
+    pub async fn run_collection_query<T>(
+        &self,
+        collection_path: &CollectionPath,
+        filter: Option<firestore_structured_query::Filter>,
+        order_by: Option<impl IntoIterator<Item = firestore_structured_query::Order>>,
+        start_after: Option<
+            impl IntoIterator<Item = google_api_proto::google::firestore::v1::Value>,
+        >,
+        limit: Option<i32>,
+    ) -> Result<Vec<Document<T>>, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut client = self.client().await?;
+        let mut all_documents = Vec::default();
+        let mut streaming_response = client.run_query(google_api_proto::google::firestore::v1::RunQueryRequest {
+            parent: collection_path.parent()
+                .map(|document_path| {
+                    self.database_name
+                        .doc(document_path.clone())
+                        .expect("document_path to be valid document_name")
+                        .to_string()
+                }).unwrap_or_else(|| self.database_name.root_document_name().to_string()),
+            explain_options: None,
+            query_type: Some(google_api_proto::google::firestore::v1::run_query_request::QueryType::StructuredQuery(
+                google_api_proto::google::firestore::v1::StructuredQuery::from({
+                    let q = firestore_structured_query::Query::collection(collection_path.collection_id().to_string());
+                    let q = match filter {
+                        None => q,
+                        Some(filter) => q.r#where(filter)
+                    };
+                    let q = match order_by {
+                        None => q,
+                        Some(order_by) => q.order_by(order_by)
+                    };
+                    let q = match start_after {
+                        None => q,
+                        Some(start_after) => q.start_after(start_after)
+                    };
+                    match limit {
+                        None => q,
+                        Some(limit) => q.limit(limit)
+                    }
+                }
+            ))),
+            consistency_selector: None,
+        }).await.map_err(InnerError::Status)?.into_inner();
+        while let Some(response) = streaming_response
+            .message()
+            .await
+            .map_err(InnerError::Status)?
+        {
+            if let Some(document) = response.document {
+                all_documents.push(document_from_google_api_proto_document::<T>(document)?);
             }
         }
         Ok(all_documents)

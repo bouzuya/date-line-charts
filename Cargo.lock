@@ -449,11 +449,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "firestore-structured-query"
+version = "0.9.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2419511177683968bf2cdd8ef7253006547bb78c109764c2f27340fd9a4f22e"
+dependencies = [
+ "google-api-proto",
+]
+
+[[package]]
 name = "firestore_client"
 version = "0.0.0"
 dependencies = [
  "async-trait",
  "firestore-path",
+ "firestore-structured-query",
  "google-api-proto",
  "google-cloud-auth",
  "google-cloud-token",
