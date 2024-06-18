@@ -1,6 +1,9 @@
 use firestore_client::FirestoreClient;
 use schema::ChartDocumentData;
-use write_model::value_object::ChartId;
+use write_model::{
+    aggregate::{chart::Event, Chart},
+    value_object::{ChartId, Version},
+};
 
 pub struct FirestoreChartStore(FirestoreClient);
 
@@ -63,6 +66,24 @@ impl query_use_case::port::ChartReader for FirestoreChartStore {
     }
 }
 
+#[async_trait::async_trait]
+impl command_use_case::port::ChartRepository for FirestoreChartStore {
+    async fn find(
+        &self,
+        _id: ChartId,
+    ) -> Result<Option<Chart>, command_use_case::port::chart_repository::Error> {
+        todo!()
+    }
+
+    async fn store(
+        &self,
+        _current: Option<Version>,
+        _events: &[Event],
+    ) -> Result<(), command_use_case::port::chart_repository::Error> {
+        todo!()
+    }
+}
+
 mod converter {
     use std::str::FromStr as _;
 
@@ -91,7 +112,7 @@ mod path {
         path::{CollectionId, DocumentId},
         CollectionPath, DocumentPath,
     };
-    use write_model::value_object::ChartId;
+    use write_model::value_object::{ChartId, EventId};
 
     pub(crate) fn chart_collection() -> CollectionPath {
         CollectionPath::new(None, chart_collection_id())
@@ -108,6 +129,44 @@ mod path {
                     .expect("chart id to be valid document id"),
             )
             .expect("chart document path to be valid document path")
+    }
+
+    pub(crate) fn chart_event_collection_id() -> CollectionId {
+        CollectionId::from_str("events")
+            .expect("chart event collection id to be valid collection id")
+    }
+
+    pub(crate) fn chart_event_collection(chart_id: ChartId) -> CollectionPath {
+        chart_event_stream_document(chart_id)
+            .collection(chart_event_collection_id())
+            .expect("chart event collection path to be valid collection path")
+    }
+
+    pub(crate) fn chart_event_document(chart_id: ChartId, event_id: EventId) -> DocumentPath {
+        chart_event_collection(chart_id)
+            .doc(
+                DocumentId::from_str(&event_id.to_string())
+                    .expect("event id to be valid document id"),
+            )
+            .expect("chart event document path to be valid document path")
+    }
+
+    pub(crate) fn chart_event_stream_collection_id() -> CollectionId {
+        CollectionId::from_str("chart_event_streams")
+            .expect("chart event stream collection id to be valid collection id")
+    }
+
+    pub(crate) fn chart_event_stream_collection() -> CollectionPath {
+        CollectionPath::new(None, chart_event_stream_collection_id())
+    }
+
+    pub(crate) fn chart_event_stream_document(chart_id: ChartId) -> DocumentPath {
+        chart_event_stream_collection()
+            .doc(
+                DocumentId::from_str(&chart_id.to_string())
+                    .expect("chart id to be valid document id"),
+            )
+            .expect("chart event stream document path to be valid document path")
     }
 }
 
