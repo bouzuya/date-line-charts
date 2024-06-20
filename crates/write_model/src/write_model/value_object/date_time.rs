@@ -8,8 +8,18 @@ pub struct Error(String);
 pub struct DateTime(chrono::DateTime<chrono::Utc>);
 
 impl DateTime {
+    pub fn from_unix_timestamp_millis(unix_timestamp_millis: i64) -> Result<Self, Error> {
+        chrono::DateTime::from_timestamp_millis(unix_timestamp_millis)
+            .ok_or_else(|| Error("invalid timestamp".to_owned()))
+            .map(Self)
+    }
+
     pub fn now() -> Self {
         Self(SubsecRound::trunc_subsecs(chrono::Utc::now(), 3))
+    }
+
+    pub fn to_unix_timestamp_millis(&self) -> i64 {
+        self.0.timestamp_millis()
     }
 }
 
@@ -57,6 +67,20 @@ mod tests {
         ] {
             assert_eq!(DateTime::from_str(s)?.to_string(), expected);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_unix_timestamp_millis_convesion() -> anyhow::Result<()> {
+        let dt = DateTime::from_unix_timestamp_millis(0)?;
+        assert_eq!(dt.to_string(), "1970-01-01T00:00:00.000Z");
+        assert_eq!(dt.to_unix_timestamp_millis(), 0);
+        let dt = DateTime::from_unix_timestamp_millis(1)?;
+        assert_eq!(dt.to_string(), "1970-01-01T00:00:00.001Z");
+        assert_eq!(dt.to_unix_timestamp_millis(), 1);
+        let dt = DateTime::from_unix_timestamp_millis(1000)?;
+        assert_eq!(dt.to_string(), "1970-01-01T00:00:01.000Z");
+        assert_eq!(dt.to_unix_timestamp_millis(), 1000);
         Ok(())
     }
 }
