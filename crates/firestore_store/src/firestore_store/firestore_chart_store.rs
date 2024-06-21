@@ -178,4 +178,114 @@ mod schema {
         pub(crate) created_at: Timestamp,
         pub(crate) title: String,
     }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub(crate) struct ChartEventDocumentData {
+        at: String,
+        data: ChartEventDataDocumentData,
+        id: String,
+        stream_id: String,
+        version: u32,
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(rename_all = "snake_case", tag = "type")]
+    pub(crate) enum ChartEventDataDocumentData {
+        Created(Created),
+        Deleted(Deleted),
+        Updated(Updated),
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Created {
+        title: String,
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Deleted {}
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub struct Updated {
+        title: String,
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_created() -> anyhow::Result<()> {
+            assert_eq!(
+                serde_json::to_value(ChartEventDocumentData {
+                    at: "2020-01-02T03:04:05.678Z".to_owned(),
+                    data: ChartEventDataDocumentData::Created(Created {
+                        title: "title".to_owned(),
+                    }),
+                    id: "id".to_owned(),
+                    stream_id: "stream_id".to_owned(),
+                    version: 1,
+                })?,
+                serde_json::json!({
+                    "at": "2020-01-02T03:04:05.678Z",
+                    "data": {
+                        "title": "title",
+                        "type": "created",
+                    },
+                    "id": "id",
+                    "stream_id": "stream_id",
+                    "version": 1,
+                }),
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn test_deleted() -> anyhow::Result<()> {
+            assert_eq!(
+                serde_json::to_value(ChartEventDocumentData {
+                    at: "2020-01-02T03:04:05.678Z".to_owned(),
+                    data: ChartEventDataDocumentData::Deleted(Deleted {}),
+                    id: "id".to_owned(),
+                    stream_id: "stream_id".to_owned(),
+                    version: 1,
+                })?,
+                serde_json::json!({
+                    "at": "2020-01-02T03:04:05.678Z",
+                    "data": {
+                        "type": "deleted",
+                    },
+                    "id": "id",
+                    "stream_id": "stream_id",
+                    "version": 1,
+                }),
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn test_updated() -> anyhow::Result<()> {
+            assert_eq!(
+                serde_json::to_value(ChartEventDocumentData {
+                    at: "2020-01-02T03:04:05.678Z".to_owned(),
+                    data: ChartEventDataDocumentData::Updated(Updated {
+                        title: "title".to_owned(),
+                    }),
+                    id: "id".to_owned(),
+                    stream_id: "stream_id".to_owned(),
+                    version: 1,
+                })?,
+                serde_json::json!({
+                    "at": "2020-01-02T03:04:05.678Z",
+                    "data": {
+                        "title": "title",
+                        "type": "updated",
+                    },
+                    "id": "id",
+                    "stream_id": "stream_id",
+                    "version": 1,
+                }),
+            );
+            Ok(())
+        }
+    }
 }
