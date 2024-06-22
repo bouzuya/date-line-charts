@@ -1,4 +1,4 @@
-use super::{ChartId, XValue};
+use super::{ChartId, EventStreamId, XValue};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -22,6 +22,13 @@ impl DataPointId {
 
     pub fn x_value(&self) -> XValue {
         self.1
+    }
+}
+
+impl From<DataPointId> for EventStreamId {
+    fn from(value: DataPointId) -> Self {
+        std::str::FromStr::from_str(value.to_string().as_str())
+            .expect("data_point_id to be valid event_stream_id")
     }
 }
 

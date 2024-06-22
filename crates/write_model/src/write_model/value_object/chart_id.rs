@@ -1,3 +1,5 @@
+use super::EventStreamId;
+
 #[derive(Debug, thiserror::Error)]
 #[error("error")]
 pub struct Error;
@@ -8,6 +10,13 @@ pub struct ChartId(uuid::Uuid);
 impl ChartId {
     pub fn generate() -> Self {
         Self(uuid::Uuid::new_v4())
+    }
+}
+
+impl From<ChartId> for EventStreamId {
+    fn from(chart_id: ChartId) -> Self {
+        std::str::FromStr::from_str(chart_id.to_string().as_str())
+            .expect("chart_id to be valid event_stream_id")
     }
 }
 
