@@ -131,41 +131,42 @@ mod path {
             .expect("chart document path to be valid document path")
     }
 
-    pub(crate) fn chart_event_collection_id() -> CollectionId {
-        CollectionId::from_str("events")
-            .expect("chart event collection id to be valid collection id")
+    // events
+    // - event_id (pk)
+    // - event_stream_id + version (uk)
+    //
+    // event_streams
+    // - event_stream_id (pk)
+
+    pub(crate) fn event_collection_id() -> CollectionId {
+        CollectionId::from_str("events").expect("event collection id to be valid collection id")
     }
 
-    pub(crate) fn chart_event_collection(chart_id: ChartId) -> CollectionPath {
-        chart_event_stream_document(chart_id)
-            .collection(chart_event_collection_id())
-            .expect("chart event collection path to be valid collection path")
+    pub(crate) fn event_collection() -> CollectionPath {
+        CollectionPath::new(None, event_collection_id())
     }
 
-    pub(crate) fn chart_event_document(chart_id: ChartId, event_id: EventId) -> DocumentPath {
-        chart_event_collection(chart_id)
+    pub(crate) fn event_document(event_id: EventId) -> DocumentPath {
+        event_collection()
             .doc(
                 DocumentId::from_str(&event_id.to_string())
                     .expect("event id to be valid document id"),
             )
-            .expect("chart event document path to be valid document path")
+            .expect("event document path to be valid document path")
     }
 
-    pub(crate) fn chart_event_stream_collection_id() -> CollectionId {
-        CollectionId::from_str("chart_event_streams")
-            .expect("chart event stream collection id to be valid collection id")
+    pub(crate) fn event_stream_collection_id() -> CollectionId {
+        CollectionId::from_str("event_streams")
+            .expect("event_stream collection id to be valid collection id")
     }
 
-    pub(crate) fn chart_event_stream_collection() -> CollectionPath {
-        CollectionPath::new(None, chart_event_stream_collection_id())
+    pub(crate) fn event_stream_collection() -> CollectionPath {
+        CollectionPath::new(None, event_stream_collection_id())
     }
 
-    pub(crate) fn chart_event_stream_document(chart_id: ChartId) -> DocumentPath {
-        chart_event_stream_collection()
-            .doc(
-                DocumentId::from_str(&chart_id.to_string())
-                    .expect("chart id to be valid document id"),
-            )
+    pub(crate) fn event_stream_document(event_stream_id: &str) -> DocumentPath {
+        event_stream_collection()
+            .doc(DocumentId::from_str(event_stream_id).expect("chart id to be valid document id"))
             .expect("chart event stream document path to be valid document path")
     }
 }
@@ -180,9 +181,16 @@ mod schema {
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
-    pub(crate) struct ChartEventDocumentData {
+    pub(crate) struct EventStreamDocumentData {
+        id: String,
+        last_event_at: String,
+        version: u32,
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    pub(crate) struct EventDocumentData<T> {
         at: String,
-        data: ChartEventDataDocumentData,
+        data: T,
         id: String,
         stream_id: String,
         version: u32,
@@ -216,7 +224,7 @@ mod schema {
         #[test]
         fn test_created() -> anyhow::Result<()> {
             assert_eq!(
-                serde_json::to_value(ChartEventDocumentData {
+                serde_json::to_value(EventDocumentData {
                     at: "2020-01-02T03:04:05.678Z".to_owned(),
                     data: ChartEventDataDocumentData::Created(Created {
                         title: "title".to_owned(),
@@ -242,7 +250,7 @@ mod schema {
         #[test]
         fn test_deleted() -> anyhow::Result<()> {
             assert_eq!(
-                serde_json::to_value(ChartEventDocumentData {
+                serde_json::to_value(EventDocumentData {
                     at: "2020-01-02T03:04:05.678Z".to_owned(),
                     data: ChartEventDataDocumentData::Deleted(Deleted {}),
                     id: "id".to_owned(),
@@ -265,7 +273,7 @@ mod schema {
         #[test]
         fn test_updated() -> anyhow::Result<()> {
             assert_eq!(
-                serde_json::to_value(ChartEventDocumentData {
+                serde_json::to_value(EventDocumentData {
                     at: "2020-01-02T03:04:05.678Z".to_owned(),
                     data: ChartEventDataDocumentData::Updated(Updated {
                         title: "title".to_owned(),
