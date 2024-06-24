@@ -97,8 +97,10 @@ mod converter {
     ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
     {
         Ok(query_use_case::port::ChartQueryData {
-            // FIXME: date time format
-            created_at: DateTime::now(), // document.fields.created_at
+            created_at: DateTime::from_unix_timestamp_millis(
+                document.fields.created_at.seconds * 1_000
+                    + document.fields.created_at.nanos / 1_000_000,
+            ),
             id: ChartId::from_str(document.name.document_id().as_ref())?,
             title: document.fields.title,
         })
