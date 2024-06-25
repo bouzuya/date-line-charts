@@ -4,12 +4,15 @@ use std::sync::Arc;
 
 pub use firestore_path as path;
 use firestore_path::DatabaseName;
+pub use firestore_structured_query as query;
 
 pub use firestore_path::CollectionPath;
 pub use firestore_path::DocumentName;
 pub use firestore_path::DocumentPath;
 pub use firestore_structured_query::FieldPath;
+pub use firestore_structured_query::Filter;
 pub use firestore_structured_query::Query;
+pub use serde_firestore_value::to_value;
 pub use serde_firestore_value::Timestamp;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
