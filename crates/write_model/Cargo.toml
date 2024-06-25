@@ -6,7 +6,7 @@ publish = false
 [dependencies]
 chrono = "0.4.38"
 thiserror.workspace = true
-uuid = { version = "1.8.0", features = ["v4"] }
+uuid = { version = "1.9.1", features = ["v4"] }
 
 [dev-dependencies]
 anyhow.workspace = true
