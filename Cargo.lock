@@ -456,6 +456,7 @@ dependencies = [
  "google-api-proto",
  "google-cloud-auth",
  "google-cloud-token",
+ "prost",
  "serde",
  "serde-firestore-value",
  "serde_json",

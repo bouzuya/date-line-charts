@@ -123,6 +123,22 @@ impl FirestoreClient {
         })
     }
 
+    pub async fn begin_transaction(&self) -> Result<Transaction, Error> {
+        let mut client = self.client().await?;
+        let google_api_proto::google::firestore::v1::BeginTransactionResponse { transaction } =
+            client
+                .begin_transaction(
+                    google_api_proto::google::firestore::v1::BeginTransactionRequest {
+                        database: self.database_name.to_string(),
+                        options: None,
+                    },
+                )
+                .await
+                .map(|response| response.into_inner())
+                .map_err(InnerError::Status)?;
+        Ok(Transaction(transaction))
+    }
+
     pub async fn create_document<T>(
         &self,
         document_path: &DocumentPath,
@@ -372,3 +388,5 @@ where
         Err(InnerError::NoMapValue)
     }
 }
+
+pub struct Transaction(prost::bytes::Bytes);
