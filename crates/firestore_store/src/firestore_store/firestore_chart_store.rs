@@ -14,7 +14,7 @@ impl FirestoreChartStore {
         Ok(Self(FirestoreClient::new().await?))
     }
 
-    async fn get_impl(
+    async fn reader_get_impl(
         &self,
         id: ChartId,
     ) -> Result<
@@ -28,7 +28,7 @@ impl FirestoreChartStore {
             .transpose()
     }
 
-    async fn list_impl(
+    async fn reader_list_impl(
         &self,
     ) -> Result<Vec<query_use_case::port::ChartQueryData>, Box<dyn std::error::Error + Send + Sync>>
     {
@@ -42,44 +42,15 @@ impl FirestoreChartStore {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(documents)
     }
-}
 
-#[async_trait::async_trait]
-impl query_use_case::port::ChartReader for FirestoreChartStore {
-    async fn get(
+    async fn repository_find_impl(
         &self,
         id: ChartId,
-    ) -> Result<
-        Option<query_use_case::port::ChartQueryData>,
-        query_use_case::port::chart_reader::Error,
-    > {
-        self.get_impl(id)
-            .await
-            .map_err(query_use_case::port::chart_reader::Error::from)
-    }
-
-    async fn list(
-        &self,
-    ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
-    {
-        self.list_impl()
-            .await
-            .map_err(query_use_case::port::chart_reader::Error::from)
-    }
-}
-
-#[async_trait::async_trait]
-impl command_use_case::port::ChartRepository for FirestoreChartStore {
-    async fn find(
-        &self,
-        id: ChartId,
-    ) -> Result<Option<Chart>, command_use_case::port::chart_repository::Error> {
+    ) -> Result<Option<Chart>, Box<dyn std::error::Error + Send + Sync>> {
         let event_stream = self
             .0
             .get_document::<EventStreamDocumentData>(&path::event_stream_document(&id.to_string()))
-            .await
-            .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-            .map_err(command_use_case::port::chart_repository::Error::from)?;
+            .await?;
         if event_stream.is_none() {
             return Ok(None);
         }
@@ -92,22 +63,12 @@ impl command_use_case::port::ChartRepository for FirestoreChartStore {
                 .run_collection_query::<EventDocumentData<ChartEventDataDocumentData>>(
                     &collection_path,
                     Some(Filter::and([FieldPath::raw("stream_id")
-                        .equal(
-                            firestore_client::to_value(&id.to_string())
-                                .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-                                .map_err(command_use_case::port::chart_repository::Error::from)?,
-                        )
-                        .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-                        .map_err(
-                            command_use_case::port::chart_repository::Error::from,
-                        )?])),
+                        .equal(firestore_client::to_value(&id.to_string())?)?])),
                     Some([FieldPath::raw("version").ascending()]),
                     start_after.clone(),
                     Some(100),
                 )
-                .await
-                .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-                .map_err(command_use_case::port::chart_repository::Error::from)?;
+                .await?;
             let is_end = documents.is_empty() || documents.len() < 100;
             start_after = Some([firestore_client::to_value(
                 &documents
@@ -115,26 +76,53 @@ impl command_use_case::port::ChartRepository for FirestoreChartStore {
                     .expect("documents to have at least one element")
                     .fields
                     .version,
-            )
-            .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-            .map_err(command_use_case::port::chart_repository::Error::from)?]);
+            )?]);
             all_documents.extend(documents);
             if is_end {
                 break;
             }
         }
-
         let events = all_documents
             .into_iter()
             .map(converter::chart_event_from_document)
-            .collect::<Result<Vec<Event>, Box<dyn std::error::Error + Send + Sync>>>()
-            .map_err(command_use_case::port::chart_repository::Error::from)?;
+            .collect::<Result<Vec<Event>, Box<dyn std::error::Error + Send + Sync>>>()?;
+        Ok(Some(Chart::from_events(&events)?))
+    }
+}
 
-        Ok(Some(
-            Chart::from_events(&events)
-                .map_err(Box::<dyn std::error::Error + Send + Sync>::from)
-                .map_err(command_use_case::port::chart_repository::Error::from)?,
-        ))
+#[async_trait::async_trait]
+impl query_use_case::port::ChartReader for FirestoreChartStore {
+    async fn get(
+        &self,
+        id: ChartId,
+    ) -> Result<
+        Option<query_use_case::port::ChartQueryData>,
+        query_use_case::port::chart_reader::Error,
+    > {
+        self.reader_get_impl(id)
+            .await
+            .map_err(query_use_case::port::chart_reader::Error::from)
+    }
+
+    async fn list(
+        &self,
+    ) -> Result<Vec<query_use_case::port::ChartQueryData>, query_use_case::port::chart_reader::Error>
+    {
+        self.reader_list_impl()
+            .await
+            .map_err(query_use_case::port::chart_reader::Error::from)
+    }
+}
+
+#[async_trait::async_trait]
+impl command_use_case::port::ChartRepository for FirestoreChartStore {
+    async fn find(
+        &self,
+        id: ChartId,
+    ) -> Result<Option<Chart>, command_use_case::port::chart_repository::Error> {
+        self.repository_find_impl(id)
+            .await
+            .map_err(command_use_case::port::chart_repository::Error::from)
     }
 
     async fn store(
