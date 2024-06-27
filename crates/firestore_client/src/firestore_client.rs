@@ -181,6 +181,7 @@ impl FirestoreClient {
     pub async fn get_document<T>(
         &self,
         document_path: &DocumentPath,
+        transaction: Option<&Transaction>,
     ) -> Result<Option<Document<T>>, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -195,7 +196,11 @@ impl FirestoreClient {
                         .expect("document_path to be valid document_name")
                         .to_string(),
                     mask: None,
-                    consistency_selector: None,
+                    consistency_selector: transaction.map(|transaction| {
+                        google_api_proto::google::firestore::v1::get_document_request::ConsistencySelector::Transaction(
+                            transaction.0.clone()
+                        )
+                    })
                 },
             )
             .await
