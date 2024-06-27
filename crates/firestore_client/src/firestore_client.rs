@@ -139,6 +139,24 @@ impl FirestoreClient {
         Ok(Transaction(transaction))
     }
 
+    pub async fn commit(
+        &self,
+        transaction: Transaction,
+        writes: Vec<google_api_proto::google::firestore::v1::Write>,
+    ) -> Result<(), Error> {
+        let mut client = self.client().await?;
+        client
+            .commit(google_api_proto::google::firestore::v1::CommitRequest {
+                database: self.database_name.to_string(),
+                writes,
+                transaction: transaction.0.clone(),
+            })
+            .await
+            .map(|response| response.into_inner())
+            .map_err(InnerError::Status)?;
+        Ok(())
+    }
+
     pub async fn create_document<T>(
         &self,
         document_path: &DocumentPath,
