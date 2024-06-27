@@ -136,25 +136,11 @@ impl FirestoreClient {
                 .await
                 .map(|response| response.into_inner())
                 .map_err(InnerError::Status)?;
-        Ok(Transaction(transaction))
-    }
-
-    pub async fn commit(
-        &self,
-        transaction: Transaction,
-        writes: Vec<google_api_proto::google::firestore::v1::Write>,
-    ) -> Result<(), Error> {
-        let mut client = self.client().await?;
-        client
-            .commit(google_api_proto::google::firestore::v1::CommitRequest {
-                database: self.database_name.to_string(),
-                writes,
-                transaction: transaction.0.clone(),
-            })
-            .await
-            .map(|response| response.into_inner())
-            .map_err(InnerError::Status)?;
-        Ok(())
+        Ok(Transaction {
+            client: self.clone(),
+            transaction,
+            writes: Vec::default(),
+        })
     }
 
     pub async fn create_document<T>(
@@ -199,7 +185,6 @@ impl FirestoreClient {
     pub async fn get_document<T>(
         &self,
         document_path: &DocumentPath,
-        transaction: Option<&Transaction>,
     ) -> Result<Option<Document<T>>, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -214,11 +199,7 @@ impl FirestoreClient {
                         .expect("document_path to be valid document_name")
                         .to_string(),
                     mask: None,
-                    consistency_selector: transaction.map(|transaction| {
-                        google_api_proto::google::firestore::v1::get_document_request::ConsistencySelector::Transaction(
-                            transaction.0.clone()
-                        )
-                    })
+                    consistency_selector: None,
                 },
             )
             .await
@@ -412,4 +393,207 @@ where
     }
 }
 
-pub struct Transaction(prost::bytes::Bytes);
+pub struct Transaction {
+    client: FirestoreClient,
+    transaction: prost::bytes::Bytes,
+    writes: Vec<google_api_proto::google::firestore::v1::Write>,
+}
+
+impl Transaction {
+    pub async fn commit(self) -> Result<(), Error> {
+        let mut client = self.client.client().await?;
+        client
+            .commit(google_api_proto::google::firestore::v1::CommitRequest {
+                database: self.client.database_name.to_string(),
+                writes: self.writes,
+                transaction: self.transaction,
+            })
+            .await
+            .map(|response| response.into_inner())
+            .map_err(InnerError::Status)?;
+        // rollback ???
+        Ok(())
+    }
+
+    pub async fn create<T>(
+        &mut self,
+        document_path: &DocumentPath,
+        document_data: &T,
+    ) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
+        let write = google_api_proto::google::firestore::v1::Write {
+            update_mask: None,
+            update_transforms: Vec::new(),
+            current_document: Some(google_api_proto::google::firestore::v1::Precondition {
+                condition_type: Some(
+                    google_api_proto::google::firestore::v1::precondition::ConditionType::Exists(
+                        false,
+                    ),
+                ),
+            }),
+            operation: Some(
+                google_api_proto::google::firestore::v1::write::Operation::Update(
+                    google_api_proto::google::firestore::v1::Document {
+                        name: self
+                            .client
+                            .database_name
+                            .doc(document_path.clone())
+                            .expect("document_path to be valid document_name")
+                            .to_string(),
+                        fields: fields_from_document_data(&document_data)?,
+                        create_time: None,
+                        update_time: None,
+                    },
+                ),
+            ),
+        };
+        self.writes.push(write);
+        Ok(())
+    }
+
+    pub async fn delete<T>(&mut self, document_path: &DocumentPath) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
+        let write = google_api_proto::google::firestore::v1::Write {
+            update_mask: None,
+            update_transforms: Vec::new(),
+            current_document: None,
+            operation: Some(
+                google_api_proto::google::firestore::v1::write::Operation::Delete(
+                    self.client
+                        .database_name
+                        .doc(document_path.clone())
+                        .expect("document_path to be valid document_name")
+                        .to_string(),
+                ),
+            ),
+        };
+        self.writes.push(write);
+        Ok(())
+    }
+
+    // delete_with_precondition
+
+    pub async fn get<T>(
+        &mut self,
+        document_path: &DocumentPath,
+    ) -> Result<Option<Document<T>>, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut client = self.client.client().await?;
+        client
+            .get_document(
+                google_api_proto::google::firestore::v1::GetDocumentRequest {
+                    name: self
+                        .client
+                        .database_name
+                        .doc(document_path.clone())
+                        .expect("document_path to be valid document_name")
+                        .to_string(),
+                    mask: None,
+                    consistency_selector: Some(
+                        google_api_proto::google::firestore::v1::get_document_request::ConsistencySelector::Transaction(
+                            self.transaction.clone()
+                        )
+                    )
+                },
+            )
+            .await
+            .map(|response| Some(response.into_inner()))
+            .or_else(|status| match status.code() {
+                tonic::Code::NotFound => Ok(None),
+                _ => Err(InnerError::Status(status)),
+            })?
+            .map(document_from_google_api_proto_document::<T>)
+            .transpose()
+    }
+
+    pub async fn rollback(self) -> Result<(), Error> {
+        let mut client = self.client.client().await?;
+        client
+            .rollback(google_api_proto::google::firestore::v1::RollbackRequest {
+                database: self.client.database_name.to_string(),
+                transaction: self.transaction,
+            })
+            .await
+            .map(|response| response.into_inner())
+            .map_err(InnerError::Status)?;
+        Ok(())
+    }
+
+    pub async fn set<T>(
+        &mut self,
+        document_path: &DocumentPath,
+        document_data: &T,
+    ) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
+        let write = google_api_proto::google::firestore::v1::Write {
+            update_mask: None,
+            update_transforms: Vec::new(),
+            current_document: None,
+            operation: Some(
+                google_api_proto::google::firestore::v1::write::Operation::Update(
+                    google_api_proto::google::firestore::v1::Document {
+                        name: self
+                            .client
+                            .database_name
+                            .doc(document_path.clone())
+                            .expect("document_path to be valid document_name")
+                            .to_string(),
+                        fields: fields_from_document_data(&document_data)?,
+                        create_time: None,
+                        update_time: None,
+                    },
+                ),
+            ),
+        };
+        self.writes.push(write);
+        Ok(())
+    }
+
+    pub async fn update<T>(
+        &mut self,
+        document_path: &DocumentPath,
+        document_data: &T,
+    ) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
+        let write = google_api_proto::google::firestore::v1::Write {
+            update_mask: None,
+            update_transforms: Vec::new(),
+            current_document: Some(google_api_proto::google::firestore::v1::Precondition {
+                condition_type: Some(
+                    google_api_proto::google::firestore::v1::precondition::ConditionType::Exists(
+                        true,
+                    ),
+                ),
+            }),
+            operation: Some(
+                google_api_proto::google::firestore::v1::write::Operation::Update(
+                    google_api_proto::google::firestore::v1::Document {
+                        name: self
+                            .client
+                            .database_name
+                            .doc(document_path.clone())
+                            .expect("document_path to be valid document_name")
+                            .to_string(),
+                        fields: fields_from_document_data(&document_data)?,
+                        create_time: None,
+                        update_time: None,
+                    },
+                ),
+            ),
+        };
+        self.writes.push(write);
+        Ok(())
+    }
+
+    // update_with_precondition
+}
