@@ -415,7 +415,7 @@ impl Transaction {
         Ok(())
     }
 
-    pub async fn create<T>(
+    pub fn create<T>(
         &mut self,
         document_path: &DocumentPath,
         document_data: &T,
@@ -453,7 +453,7 @@ impl Transaction {
         Ok(())
     }
 
-    pub async fn delete<T>(&mut self, document_path: &DocumentPath) -> Result<(), Error>
+    pub fn delete<T>(&mut self, document_path: &DocumentPath) -> Result<(), Error>
     where
         T: serde::Serialize,
     {
@@ -525,11 +525,7 @@ impl Transaction {
         Ok(())
     }
 
-    pub async fn set<T>(
-        &mut self,
-        document_path: &DocumentPath,
-        document_data: &T,
-    ) -> Result<(), Error>
+    pub fn set<T>(&mut self, document_path: &DocumentPath, document_data: &T) -> Result<(), Error>
     where
         T: serde::Serialize,
     {
@@ -557,7 +553,7 @@ impl Transaction {
         Ok(())
     }
 
-    pub async fn update<T>(
+    pub fn update<T>(
         &mut self,
         document_path: &DocumentPath,
         document_data: &T,
