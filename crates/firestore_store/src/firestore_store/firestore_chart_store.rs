@@ -1,10 +1,13 @@
+use std::str::FromStr;
+
+use converter::document_data_from_chart_event_data;
 use firestore_client::{FieldPath, Filter, FirestoreClient};
 use schema::{
     ChartDocumentData, ChartEventDataDocumentData, EventDocumentData, EventStreamDocumentData,
 };
 use write_model::{
     aggregate::{chart::Event, Chart},
-    value_object::{ChartId, Version},
+    value_object::{ChartId, EventStreamId, Version},
 };
 
 pub struct FirestoreChartStore(FirestoreClient);
@@ -88,6 +91,64 @@ impl FirestoreChartStore {
             .collect::<Result<Vec<Event>, Box<dyn std::error::Error + Send + Sync>>>()?;
         Ok(Some(Chart::from_events(&events)?))
     }
+
+    async fn repository_store_impl(
+        &self,
+        current: Option<Version>,
+        events: &[Event],
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if events.is_empty() {
+            return Ok(());
+        }
+
+        let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
+        let last_event_version = events
+            .last()
+            .expect("events to have at least one element")
+            .version;
+        let last_event_at = events
+            .last()
+            .expect("events to have at least one element")
+            .at;
+        let mut transaction = self.0.begin_transaction().await?;
+        match current {
+            None => {
+                // create event_stream
+                // TODO: rollback
+                transaction.create(
+                    &path::event_stream_document(event_stream_id.to_string().as_str()),
+                    &EventStreamDocumentData {
+                        id: event_stream_id.to_string(),
+                        last_event_at: last_event_at.to_string(),
+                        version: i64::from(last_event_version),
+                    },
+                )?;
+                // create events
+                for event in events {
+                    // TODO: rollback
+                    transaction.create(
+                        &path::event_document(event.id),
+                        &EventDocumentData {
+                            at: event.at.to_string(),
+                            data: document_data_from_chart_event_data(&event.data),
+                            id: event.id.to_string(),
+                            stream_id: event.stream_id.to_string(),
+                            version: i64::from(event.version),
+                        },
+                    )?;
+                }
+            }
+            Some(_current) => {
+                // get event_stream with lock
+                // check version
+                // update event_stream
+                // create events
+                todo!()
+            }
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -127,10 +188,12 @@ impl command_use_case::port::ChartRepository for FirestoreChartStore {
 
     async fn store(
         &self,
-        _current: Option<Version>,
-        _events: &[Event],
+        current: Option<Version>,
+        events: &[Event],
     ) -> Result<(), command_use_case::port::chart_repository::Error> {
-        todo!()
+        self.repository_store_impl(current, events)
+            .await
+            .map_err(command_use_case::port::chart_repository::Error::from)
     }
 }
 
@@ -178,10 +241,28 @@ mod converter {
             },
             id: write_model::value_object::EventId::from_str(document.name.document_id().as_ref())?,
             stream_id: write_model::value_object::ChartId::from_str(&document.fields.stream_id)?,
-            version: write_model::value_object::Version::try_from(i64::from(
-                document.fields.version,
-            ))?,
+            version: write_model::value_object::Version::try_from(document.fields.version)?,
         })
+    }
+
+    pub(crate) fn document_data_from_chart_event_data(
+        event_data: &write_model::aggregate::chart::EventData,
+    ) -> ChartEventDataDocumentData {
+        match event_data {
+            write_model::aggregate::chart::EventData::Created(data) => {
+                ChartEventDataDocumentData::Created(super::schema::Created {
+                    title: data.title.to_owned(),
+                })
+            }
+            write_model::aggregate::chart::EventData::Deleted(_) => {
+                ChartEventDataDocumentData::Deleted(super::schema::Deleted {})
+            }
+            write_model::aggregate::chart::EventData::Updated(data) => {
+                ChartEventDataDocumentData::Updated(super::schema::Updated {
+                    title: data.title.to_owned(),
+                })
+            }
+        }
     }
 }
 
@@ -265,7 +346,7 @@ mod schema {
     pub(crate) struct EventStreamDocumentData {
         pub(crate) id: String,
         pub(crate) last_event_at: String,
-        pub(crate) version: u32,
+        pub(crate) version: i64,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -274,7 +355,7 @@ mod schema {
         pub(crate) data: T,
         pub(crate) id: String,
         pub(crate) stream_id: String,
-        pub(crate) version: u32,
+        pub(crate) version: i64,
     }
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
