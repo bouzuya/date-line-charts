@@ -123,28 +123,47 @@ impl FirestoreChartStore {
                         version: i64::from(last_event_version),
                     },
                 )?;
-                // create events
-                for event in events {
-                    // TODO: rollback
-                    transaction.create(
-                        &path::event_document(event.id),
-                        &EventDocumentData {
-                            at: event.at.to_string(),
-                            data: document_data_from_chart_event_data(&event.data),
-                            id: event.id.to_string(),
-                            stream_id: event.stream_id.to_string(),
-                            version: i64::from(event.version),
-                        },
-                    )?;
-                }
             }
-            Some(_current) => {
+            Some(current) => {
                 // get event_stream with lock
+                // TODO: rollback
+                let event_stream = transaction
+                    .get::<EventStreamDocumentData>(&path::event_stream_document(
+                        event_stream_id.to_string().as_str(),
+                    ))
+                    .await?
+                    .ok_or("event stream not found")?;
+
                 // check version
+                // TODO: rollback
+                if event_stream.fields.version != i64::from(current) {
+                    return Err("version mismatch".into());
+                }
+
                 // update event_stream
-                // create events
-                todo!()
+                transaction.update(
+                    &path::event_stream_document(event_stream_id.to_string().as_str()),
+                    &EventStreamDocumentData {
+                        last_event_at: last_event_at.to_string(),
+                        version: i64::from(last_event_version),
+                        ..event_stream.fields
+                    },
+                )?;
             }
+        }
+        // create events
+        for event in events {
+            // TODO: rollback
+            transaction.create(
+                &path::event_document(event.id),
+                &EventDocumentData {
+                    at: event.at.to_string(),
+                    data: document_data_from_chart_event_data(&event.data),
+                    id: event.id.to_string(),
+                    stream_id: event.stream_id.to_string(),
+                    version: i64::from(event.version),
+                },
+            )?;
         }
         transaction.commit().await?;
         Ok(())
