@@ -400,18 +400,17 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub async fn commit(self) -> Result<(), Error> {
+    pub async fn commit(&self) -> Result<(), Error> {
         let mut client = self.client.client().await?;
         client
             .commit(google_api_proto::google::firestore::v1::CommitRequest {
                 database: self.client.database_name.to_string(),
-                writes: self.writes,
-                transaction: self.transaction,
+                writes: self.writes.clone(),
+                transaction: self.transaction.clone(),
             })
             .await
             .map(|response| response.into_inner())
             .map_err(InnerError::Status)?;
-        // rollback ???
         Ok(())
     }
 
@@ -512,12 +511,12 @@ impl Transaction {
             .transpose()
     }
 
-    pub async fn rollback(self) -> Result<(), Error> {
+    pub async fn rollback(&self) -> Result<(), Error> {
         let mut client = self.client.client().await?;
         client
             .rollback(google_api_proto::google::firestore::v1::RollbackRequest {
                 database: self.client.database_name.to_string(),
-                transaction: self.transaction,
+                transaction: self.transaction.clone(),
             })
             .await
             .map(|response| response.into_inner())
