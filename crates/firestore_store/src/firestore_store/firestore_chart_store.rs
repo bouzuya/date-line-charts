@@ -1,7 +1,7 @@
-use std::str::FromStr;
+use std::{future::Future, pin::Pin, str::FromStr};
 
 use converter::document_data_from_chart_event_data;
-use firestore_client::{FieldPath, Filter, FirestoreClient};
+use firestore_client::{FieldPath, Filter, FirestoreClient, Transaction};
 use schema::{
     ChartDocumentData, ChartEventDataDocumentData, EventDocumentData, EventStreamDocumentData,
 };
@@ -101,6 +101,20 @@ impl FirestoreChartStore {
             return Ok(());
         }
 
+        let events = events.to_vec();
+        self.run_transaction(move |transaction| {
+            Box::pin(async move {
+                Self::repository_store_impl_transaction(transaction, current, events).await
+            })
+        })
+        .await
+    }
+
+    async fn repository_store_impl_transaction(
+        transaction: &mut Transaction,
+        current: Option<Version>,
+        events: Vec<Event>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
         let last_event_version = events
             .last()
@@ -110,11 +124,9 @@ impl FirestoreChartStore {
             .last()
             .expect("events to have at least one element")
             .at;
-        let mut transaction = self.0.begin_transaction().await?;
         match current {
             None => {
                 // create event_stream
-                // TODO: rollback
                 transaction.create(
                     &path::event_stream_document(event_stream_id.to_string().as_str()),
                     &EventStreamDocumentData {
@@ -126,7 +138,6 @@ impl FirestoreChartStore {
             }
             Some(current) => {
                 // get event_stream with lock
-                // TODO: rollback
                 let event_stream = transaction
                     .get::<EventStreamDocumentData>(&path::event_stream_document(
                         event_stream_id.to_string().as_str(),
@@ -135,7 +146,6 @@ impl FirestoreChartStore {
                     .ok_or("event stream not found")?;
 
                 // check version
-                // TODO: rollback
                 if event_stream.fields.version != i64::from(current) {
                     return Err("version mismatch".into());
                 }
@@ -153,7 +163,6 @@ impl FirestoreChartStore {
         }
         // create events
         for event in events {
-            // TODO: rollback
             transaction.create(
                 &path::event_document(event.id),
                 &EventDocumentData {
@@ -165,8 +174,37 @@ impl FirestoreChartStore {
                 },
             )?;
         }
-        transaction.commit().await?;
         Ok(())
+    }
+
+    async fn run_transaction<F>(
+        &self,
+        callback: F,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+    where
+        F: FnOnce(
+            &mut Transaction,
+        ) -> Pin<
+            Box<
+                dyn Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
+                    + Send
+                    + '_,
+            >,
+        >,
+    {
+        let mut transaction = self.0.begin_transaction().await?;
+        let result = match callback(&mut transaction).await {
+            Ok(()) => transaction.commit().await.map_err(Into::into),
+            Err(e) => Err(e),
+        };
+        match result {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                // ignore rollback error
+                let _ = transaction.rollback().await;
+                Err(e)
+            }
+        }
     }
 }
 
