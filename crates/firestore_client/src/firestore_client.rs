@@ -182,6 +182,25 @@ impl FirestoreClient {
         Ok(())
     }
 
+    pub async fn delete_document(&self, document_path: &DocumentPath) -> Result<(), Error> {
+        let mut client = self.client().await?;
+        client
+            .delete_document(
+                google_api_proto::google::firestore::v1::DeleteDocumentRequest {
+                    name: self
+                        .database_name
+                        .doc(document_path.clone())
+                        .expect("document_path to be valid document_name")
+                        .to_string(),
+                    current_document: None,
+                },
+            )
+            .await
+            .map(|response| response.into_inner())
+            .map_err(InnerError::Status)?;
+        Ok(())
+    }
+
     pub async fn get_document<T>(
         &self,
         document_path: &DocumentPath,
