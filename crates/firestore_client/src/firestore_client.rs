@@ -358,9 +358,8 @@ impl FirestoreClient {
     async fn client(&self) -> Result<Client, Error> {
         let inner = self.channel.clone();
         let token = self.token_source.token().await.map_err(InnerError::Token)?;
-        let mut metadata_value =
-            tonic::metadata::AsciiMetadataValue::try_from(format!("Bearer {}", token))
-                .map_err(InnerError::HeaderValue)?;
+        let mut metadata_value = tonic::metadata::AsciiMetadataValue::try_from(token)
+            .map_err(InnerError::HeaderValue)?;
         metadata_value.set_sensitive(true);
         let interceptor: MyInterceptor = Box::new(
             move |mut request: tonic::Request<()>| -> Result<tonic::Request<()>, tonic::Status> {
