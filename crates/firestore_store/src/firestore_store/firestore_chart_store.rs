@@ -516,3 +516,22 @@ mod schema {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use command_use_case::port::ChartRepository as _;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let store = FirestoreChartStore::new()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let (chart, events) = Chart::create("title1".to_owned())?;
+        assert_eq!(store.find(chart.id()).await?, None);
+        store.store(None, &events).await?;
+        assert_eq!(store.find(chart.id()).await?, None);
+        Ok(())
+    }
+}
