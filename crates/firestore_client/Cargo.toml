@@ -7,7 +7,7 @@ publish = false
 async-trait.workspace = true
 firestore-path = "0.9.18"
 firestore-structured-query = "0.9.10"
-google-api-proto = { version = "1.673.0", features = ["google-firestore-v1"] }
+google-api-proto = { version = "1.696.0", features = ["google-firestore-v1"] }
 google-cloud-auth = { version = "0.15.0", default-features = false, features = [
   "rustls-tls",
 ] }
