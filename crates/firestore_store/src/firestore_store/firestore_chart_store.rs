@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin, str::FromStr};
 
 use converter::document_data_from_chart_event_data;
-use firestore_client::{FieldPath, Filter, FirestoreClient, Transaction};
+use firestore_client::{DocumentPath, FieldPath, Filter, FirestoreClient, Transaction};
 use schema::{
     ChartDocumentData, ChartEventDataDocumentData, EventDocumentData, EventStreamDocumentData,
 };
@@ -102,12 +102,98 @@ impl FirestoreChartStore {
         }
 
         let events = events.to_vec();
-        self.run_transaction(move |transaction| {
-            Box::pin(async move {
-                Self::repository_store_impl_transaction(transaction, current, events).await
+        let result = self
+            .run_transaction(move |transaction| {
+                Box::pin(async move {
+                    Self::repository_store_impl_transaction(transaction, current, events).await
+                })
             })
-        })
-        .await
+            .await;
+
+        // To simplify the structure, update the query data at this timing (not supported for failure).
+        let updater_metadata_document_path = DocumentPath::from_str("query/updater")?;
+        #[derive(serde::Deserialize, serde::Serialize)]
+        struct UpdaterMetadataDocumentData {
+            last_processed_event_at: String,
+        }
+        #[derive(serde::Deserialize, serde::Serialize)]
+        struct UpdaterMetadataProcessedEventDocumentData {}
+        let last_processed_event_at = self
+            .0
+            .get_document::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
+            .await?
+            .map(|document| document.fields.last_processed_event_at)
+            .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_owned());
+        let events = self
+            .0
+            .run_collection_query::<EventDocumentData<ChartDocumentData>>(
+                &path::event_collection(),
+                Some(Filter::and([FieldPath::raw("at").greater_than_or_equal(
+                    // FIXME: last_processed_event_at - 10s
+                    firestore_client::to_value(&last_processed_event_at.to_string())?,
+                )?])),
+                Some([FieldPath::raw("at").ascending()]),
+                None::<Vec<_>>,
+                None,
+            )
+            .await?;
+        let mut filtered_events = vec![];
+        for event in events {
+            let document_path = updater_metadata_document_path
+                .collection("processed_events")?
+                .doc(event.name.document_id().as_ref())?;
+            let processed_event = self
+                .0
+                .get_document::<UpdaterMetadataProcessedEventDocumentData>(&document_path)
+                .await?;
+            if processed_event.is_none() {
+                filtered_events.push(event);
+            }
+        }
+        for event in filtered_events {
+            match self
+                .run_transaction(move |transaction| {
+                    Box::pin(async move {
+                        let updater_metadata_document_path =
+                            DocumentPath::from_str("query/updater")?;
+                        // lock updater_metadata_document
+                        let _updater_metadata_document = transaction
+                            .get::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
+                            .await?
+                            .ok_or("updater metadata document not found")?;
+                        transaction.create(
+                            &updater_metadata_document_path
+                                .collection("processed_events")?
+                                .doc(event.name.document_id().as_ref())?,
+                            &UpdaterMetadataProcessedEventDocumentData {},
+                        )?;
+
+                        // FIXME: update `query/data/...` documents
+
+                        // FIXME: Use transaction.update_with_precondition
+                        transaction.update(
+                            &updater_metadata_document_path,
+                            &UpdaterMetadataDocumentData {
+                                last_processed_event_at: event.fields.at.clone(),
+                            },
+                        )?;
+                        Ok(())
+                    })
+                })
+                .await
+            {
+                Err(_) => {
+                    // ignore error
+                    // stop event processing
+                    break;
+                }
+                Ok(_) => {
+                    // next event
+                }
+            }
+        }
+
+        result
     }
 
     async fn repository_store_impl_transaction(
