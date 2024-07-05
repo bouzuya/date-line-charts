@@ -126,7 +126,7 @@ impl FirestoreChartStore {
             .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_owned());
         let events = self
             .0
-            .run_collection_query::<EventDocumentData<ChartDocumentData>>(
+            .run_collection_query::<EventDocumentData<ChartEventDataDocumentData>>(
                 &path::event_collection(),
                 Some(Filter::and([FieldPath::raw("at").greater_than_or_equal(
                     // FIXME: last_processed_event_at - 10s
@@ -168,7 +168,35 @@ impl FirestoreChartStore {
                             &UpdaterMetadataProcessedEventDocumentData {},
                         )?;
 
-                        // FIXME: update `query/data/...` documents
+                        let chart_id = ChartId::from_str(&event.fields.stream_id)?;
+                        let chart_document_path = path::chart_document(chart_id);
+                        match event.fields.data {
+                            ChartEventDataDocumentData::Created(schema::Created { title }) => {
+                                transaction.create(
+                                    &chart_document_path,
+                                    &ChartDocumentData {
+                                        created_at: event.fields.at.clone(),
+                                        title,
+                                    },
+                                )?;
+                            }
+                            ChartEventDataDocumentData::Deleted(schema::Deleted {}) => {
+                                transaction.delete(&chart_document_path)?
+                            }
+                            ChartEventDataDocumentData::Updated(schema::Updated { title }) => {
+                                let document = transaction
+                                    .get::<ChartDocumentData>(&chart_document_path)
+                                    .await?
+                                    .ok_or("not found")?;
+                                transaction.update(
+                                    &chart_document_path,
+                                    &ChartDocumentData {
+                                        created_at: document.fields.created_at,
+                                        title,
+                                    },
+                                )?
+                            }
+                        }
 
                         // FIXME: Use transaction.update_with_precondition
                         transaction.update(
@@ -359,10 +387,7 @@ mod converter {
     ) -> Result<query_use_case::port::ChartQueryData, Box<dyn std::error::Error + Send + Sync>>
     {
         Ok(query_use_case::port::ChartQueryData {
-            created_at: DateTime::from_unix_timestamp_millis(
-                document.fields.created_at.seconds * 1_000
-                    + i64::from(document.fields.created_at.nanos / 1_000_000),
-            )?,
+            created_at: DateTime::from_str(&document.fields.created_at)?,
             id: ChartId::from_str(document.name.document_id().as_ref())?,
             title: document.fields.title,
         })
@@ -477,11 +502,9 @@ mod path {
 }
 
 mod schema {
-    use firestore_client::Timestamp;
-
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     pub(crate) struct ChartDocumentData {
-        pub(crate) created_at: Timestamp,
+        pub(crate) created_at: String,
         pub(crate) title: String,
     }
 
