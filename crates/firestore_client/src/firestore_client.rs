@@ -470,10 +470,7 @@ impl Transaction {
         Ok(())
     }
 
-    pub fn delete<T>(&mut self, document_path: &DocumentPath) -> Result<(), Error>
-    where
-        T: serde::Serialize,
-    {
+    pub fn delete(&mut self, document_path: &DocumentPath) -> Result<(), Error> {
         let write = google_api_proto::google::firestore::v1::Write {
             update_mask: None,
             update_transforms: Vec::new(),
