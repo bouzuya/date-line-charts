@@ -157,10 +157,9 @@ impl FirestoreChartStore {
                         let updater_metadata_document_path =
                             DocumentPath::from_str("query/updater")?;
                         // lock updater_metadata_document
-                        let _updater_metadata_document = transaction
+                        let updater_metadata_document = transaction
                             .get::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
-                            .await?
-                            .ok_or("updater metadata document not found")?;
+                            .await?;
                         transaction.create(
                             &updater_metadata_document_path
                                 .collection("processed_events")?
@@ -199,12 +198,21 @@ impl FirestoreChartStore {
                         }
 
                         // FIXME: Use transaction.update_with_precondition
-                        transaction.update(
-                            &updater_metadata_document_path,
-                            &UpdaterMetadataDocumentData {
-                                last_processed_event_at: event.fields.at.clone(),
-                            },
-                        )?;
+                        if updater_metadata_document.is_none() {
+                            transaction.create(
+                                &updater_metadata_document_path,
+                                &UpdaterMetadataDocumentData {
+                                    last_processed_event_at: event.fields.at.clone(),
+                                },
+                            )?;
+                        } else {
+                            transaction.update(
+                                &updater_metadata_document_path,
+                                &UpdaterMetadataDocumentData {
+                                    last_processed_event_at: event.fields.at.clone(),
+                                },
+                            )?;
+                        }
                         Ok(())
                     })
                 })
