@@ -1,7 +1,9 @@
 use std::{future::Future, pin::Pin, str::FromStr};
 
 use converter::document_data_from_chart_event_data;
-use firestore_client::{DocumentPath, FieldPath, Filter, FirestoreClient, Transaction};
+use firestore_client::{
+    DocumentPath, FieldPath, Filter, FirestoreClient, Precondition, Transaction,
+};
 use schema::{
     ChartDocumentData, ChartEventDataDocumentData, EventDocumentData, EventStreamDocumentData,
 };
@@ -197,21 +199,24 @@ impl FirestoreChartStore {
                             }
                         }
 
-                        // FIXME: Use transaction.update_with_precondition
-                        if updater_metadata_document.is_none() {
-                            transaction.create(
-                                &updater_metadata_document_path,
-                                &UpdaterMetadataDocumentData {
-                                    last_processed_event_at: event.fields.at.clone(),
-                                },
-                            )?;
-                        } else {
-                            transaction.update(
-                                &updater_metadata_document_path,
-                                &UpdaterMetadataDocumentData {
-                                    last_processed_event_at: event.fields.at.clone(),
-                                },
-                            )?;
+                        match updater_metadata_document {
+                            None => {
+                                transaction.create(
+                                    &updater_metadata_document_path,
+                                    &UpdaterMetadataDocumentData {
+                                        last_processed_event_at: event.fields.at.clone(),
+                                    },
+                                )?;
+                            }
+                            Some(updater_metadata_document) => {
+                                transaction.update_with_precondition(
+                                    &updater_metadata_document_path,
+                                    &UpdaterMetadataDocumentData {
+                                        last_processed_event_at: event.fields.at.clone(),
+                                    },
+                                    Precondition::UpdateTime(updater_metadata_document.update_time),
+                                )?;
+                            }
                         }
                         Ok(())
                     })
