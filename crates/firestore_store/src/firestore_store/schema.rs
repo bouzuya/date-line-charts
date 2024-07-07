@@ -41,6 +41,13 @@ pub struct Updated {
     pub(crate) title: String,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub(crate) struct UpdaterMetadataDocumentData {
+    pub(crate) last_processed_event_at: String,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+pub(crate) struct UpdaterMetadataProcessedEventDocumentData {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

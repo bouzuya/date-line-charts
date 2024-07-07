@@ -4,7 +4,8 @@ use crate::{
     converter, path,
     schema::{
         self, ChartDocumentData, ChartEventDataDocumentData, EventDocumentData,
-        EventStreamDocumentData,
+        EventStreamDocumentData, UpdaterMetadataDocumentData,
+        UpdaterMetadataProcessedEventDocumentData,
     },
 };
 use firestore_client::{
@@ -192,12 +193,6 @@ impl FirestoreChartStore {
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let updater_metadata_document_path = DocumentPath::from_str("query/updater")?;
-        #[derive(serde::Deserialize, serde::Serialize)]
-        struct UpdaterMetadataDocumentData {
-            last_processed_event_at: String,
-        }
-        #[derive(serde::Deserialize, serde::Serialize)]
-        struct UpdaterMetadataProcessedEventDocumentData {}
         let last_processed_event_at = self
             .0
             .get_document::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
