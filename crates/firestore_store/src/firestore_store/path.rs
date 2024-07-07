@@ -6,6 +6,23 @@ use firestore_client::{
 };
 use write_model::value_object::{ChartId, EventId};
 
+pub(crate) fn query_updater_document() -> DocumentPath {
+    CollectionPath::new(
+        None,
+        CollectionId::from_str("query").expect("query collection id to be valid"),
+    )
+    .doc(DocumentId::from_str("updater").expect("updater document id to be valid"))
+    .expect("query updater document path to be valid")
+}
+
+pub(crate) fn query_updater_processed_event_document(event_id: EventId) -> DocumentPath {
+    query_updater_document()
+        .collection("processed_events")
+        .expect("query updater processed event collection path to be valid")
+        .doc(DocumentId::from_str(&event_id.to_string()).expect("event id to be valid"))
+        .expect("query updater processed event document path to be valid")
+}
+
 pub(crate) fn chart_collection() -> CollectionPath {
     CollectionPath::new(None, chart_collection_id())
 }

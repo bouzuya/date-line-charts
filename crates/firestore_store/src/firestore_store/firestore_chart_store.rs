@@ -8,12 +8,10 @@ use crate::{
         UpdaterMetadataProcessedEventDocumentData,
     },
 };
-use firestore_client::{
-    DocumentPath, FieldPath, Filter, FirestoreClient, Precondition, Transaction,
-};
+use firestore_client::{FieldPath, Filter, FirestoreClient, Precondition, Transaction};
 use write_model::{
     aggregate::{chart::Event, Chart},
-    value_object::{ChartId, EventStreamId, Version},
+    value_object::{ChartId, EventId, EventStreamId, Version},
 };
 
 pub struct FirestoreChartStore(FirestoreClient);
@@ -192,7 +190,7 @@ impl FirestoreChartStore {
     async fn repository_store_impl_update_query_data(
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let updater_metadata_document_path = DocumentPath::from_str("query/updater")?;
+        let updater_metadata_document_path = path::query_updater_document();
         let last_processed_event_at = self
             .0
             .get_document::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
@@ -229,16 +227,15 @@ impl FirestoreChartStore {
             match self
                 .run_transaction(move |transaction| {
                     Box::pin(async move {
-                        let updater_metadata_document_path =
-                            DocumentPath::from_str("query/updater")?;
+                        let updater_metadata_document_path = path::query_updater_document();
                         // lock updater_metadata_document
                         let updater_metadata_document = transaction
                             .get::<UpdaterMetadataDocumentData>(&updater_metadata_document_path)
                             .await?;
                         transaction.create(
-                            &updater_metadata_document_path
-                                .collection("processed_events")?
-                                .doc(event.name.document_id().as_ref())?,
+                            &path::query_updater_processed_event_document(EventId::from_str(
+                                &event.fields.id,
+                            )?),
                             &UpdaterMetadataProcessedEventDocumentData {},
                         )?;
 
