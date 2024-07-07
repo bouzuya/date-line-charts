@@ -418,6 +418,8 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    // public methods
+
     pub async fn commit(&self) -> Result<(), Error> {
         let mut client = self.client.client().await?;
         client
@@ -471,22 +473,15 @@ impl Transaction {
     }
 
     pub fn delete(&mut self, document_path: &DocumentPath) -> Result<(), Error> {
-        let write = google_api_proto::google::firestore::v1::Write {
-            update_mask: None,
-            update_transforms: Vec::new(),
-            current_document: None,
-            operation: Some(
-                google_api_proto::google::firestore::v1::write::Operation::Delete(
-                    self.client
-                        .database_name
-                        .doc(document_path.clone())
-                        .expect("document_path to be valid document_name")
-                        .to_string(),
-                ),
-            ),
-        };
-        self.writes.push(write);
-        Ok(())
+        self.delete_impl(document_path, None)
+    }
+
+    pub fn delete_with_precondition(
+        &mut self,
+        document_path: &DocumentPath,
+        precondition: Precondition,
+    ) -> Result<(), Error> {
+        self.delete_impl(document_path, Some(precondition))
     }
 
     // delete_with_precondition
@@ -604,6 +599,31 @@ impl Transaction {
                         create_time: None,
                         update_time: None,
                     },
+                ),
+            ),
+        };
+        self.writes.push(write);
+        Ok(())
+    }
+
+    // private methods
+
+    fn delete_impl(
+        &mut self,
+        document_path: &DocumentPath,
+        precondition: Option<Precondition>,
+    ) -> Result<(), Error> {
+        let write = google_api_proto::google::firestore::v1::Write {
+            update_mask: None,
+            update_transforms: Vec::new(),
+            current_document: precondition.as_ref().map(Precondition::to_proto),
+            operation: Some(
+                google_api_proto::google::firestore::v1::write::Operation::Delete(
+                    self.client
+                        .database_name
+                        .doc(document_path.clone())
+                        .expect("document_path to be valid document_name")
+                        .to_string(),
                 ),
             ),
         };
