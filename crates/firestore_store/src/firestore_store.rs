@@ -1,3 +1,4 @@
+pub(crate) mod converter;
 mod firestore_chart_store;
 pub(crate) mod schema;
 
