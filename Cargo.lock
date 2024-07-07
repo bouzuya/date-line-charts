@@ -372,6 +372,7 @@ dependencies = [
  "anyhow",
  "clap",
  "file_system_store",
+ "firestore_store",
  "in_memory_store",
  "server",
  "tokio",
