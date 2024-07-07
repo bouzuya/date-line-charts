@@ -116,6 +116,81 @@ impl FirestoreChartStore {
             .await;
 
         // To simplify the structure, update the query data at this timing (not supported for failure).
+        self.repository_store_impl_update_query_data().await?;
+
+        result
+    }
+
+    async fn repository_store_impl_transaction(
+        transaction: &mut Transaction,
+        current: Option<Version>,
+        events: Vec<Event>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
+        let last_event_version = events
+            .last()
+            .expect("events to have at least one element")
+            .version;
+        let last_event_at = events
+            .last()
+            .expect("events to have at least one element")
+            .at;
+        match current {
+            None => {
+                // create event_stream
+                transaction.create(
+                    &path::event_stream_document(event_stream_id.to_string().as_str()),
+                    &EventStreamDocumentData {
+                        id: event_stream_id.to_string(),
+                        last_event_at: last_event_at.to_string(),
+                        version: i64::from(last_event_version),
+                    },
+                )?;
+            }
+            Some(current) => {
+                // get event_stream with lock
+                let event_stream = transaction
+                    .get::<EventStreamDocumentData>(&path::event_stream_document(
+                        event_stream_id.to_string().as_str(),
+                    ))
+                    .await?
+                    .ok_or("event stream not found")?;
+
+                // check version
+                if event_stream.fields.version != i64::from(current) {
+                    return Err("version mismatch".into());
+                }
+
+                // update event_stream
+                transaction.update(
+                    &path::event_stream_document(event_stream_id.to_string().as_str()),
+                    &EventStreamDocumentData {
+                        last_event_at: last_event_at.to_string(),
+                        version: i64::from(last_event_version),
+                        ..event_stream.fields
+                    },
+                )?;
+            }
+        }
+        // create events
+        for event in events {
+            transaction.create(
+                &path::event_document(event.id),
+                &EventDocumentData {
+                    at: event.at.to_string(),
+                    data: converter::document_data_from_chart_event_data(&event.data),
+                    id: event.id.to_string(),
+                    stream_id: event.stream_id.to_string(),
+                    version: i64::from(event.version),
+                },
+            )?;
+        }
+        Ok(())
+    }
+
+    async fn repository_store_impl_update_query_data(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let updater_metadata_document_path = DocumentPath::from_str("query/updater")?;
         #[derive(serde::Deserialize, serde::Serialize)]
         struct UpdaterMetadataDocumentData {
@@ -237,73 +312,6 @@ impl FirestoreChartStore {
             }
         }
 
-        result
-    }
-
-    async fn repository_store_impl_transaction(
-        transaction: &mut Transaction,
-        current: Option<Version>,
-        events: Vec<Event>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
-        let last_event_version = events
-            .last()
-            .expect("events to have at least one element")
-            .version;
-        let last_event_at = events
-            .last()
-            .expect("events to have at least one element")
-            .at;
-        match current {
-            None => {
-                // create event_stream
-                transaction.create(
-                    &path::event_stream_document(event_stream_id.to_string().as_str()),
-                    &EventStreamDocumentData {
-                        id: event_stream_id.to_string(),
-                        last_event_at: last_event_at.to_string(),
-                        version: i64::from(last_event_version),
-                    },
-                )?;
-            }
-            Some(current) => {
-                // get event_stream with lock
-                let event_stream = transaction
-                    .get::<EventStreamDocumentData>(&path::event_stream_document(
-                        event_stream_id.to_string().as_str(),
-                    ))
-                    .await?
-                    .ok_or("event stream not found")?;
-
-                // check version
-                if event_stream.fields.version != i64::from(current) {
-                    return Err("version mismatch".into());
-                }
-
-                // update event_stream
-                transaction.update(
-                    &path::event_stream_document(event_stream_id.to_string().as_str()),
-                    &EventStreamDocumentData {
-                        last_event_at: last_event_at.to_string(),
-                        version: i64::from(last_event_version),
-                        ..event_stream.fields
-                    },
-                )?;
-            }
-        }
-        // create events
-        for event in events {
-            transaction.create(
-                &path::event_document(event.id),
-                &EventDocumentData {
-                    at: event.at.to_string(),
-                    data: converter::document_data_from_chart_event_data(&event.data),
-                    id: event.id.to_string(),
-                    stream_id: event.stream_id.to_string(),
-                    version: i64::from(event.version),
-                },
-            )?;
-        }
         Ok(())
     }
 
