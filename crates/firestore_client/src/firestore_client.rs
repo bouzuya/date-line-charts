@@ -575,16 +575,22 @@ impl Transaction {
     where
         T: serde::Serialize,
     {
+        self.update_with_precondition(document_path, document_data, Precondition::Exists(true))
+    }
+
+    pub fn update_with_precondition<T>(
+        &mut self,
+        document_path: &DocumentPath,
+        document_data: &T,
+        precondition: Precondition,
+    ) -> Result<(), Error>
+    where
+        T: serde::Serialize,
+    {
         let write = google_api_proto::google::firestore::v1::Write {
             update_mask: None,
             update_transforms: Vec::new(),
-            current_document: Some(google_api_proto::google::firestore::v1::Precondition {
-                condition_type: Some(
-                    google_api_proto::google::firestore::v1::precondition::ConditionType::Exists(
-                        true,
-                    ),
-                ),
-            }),
+            current_document: Some(precondition.to_proto()),
             operation: Some(
                 google_api_proto::google::firestore::v1::write::Operation::Update(
                     google_api_proto::google::firestore::v1::Document {
@@ -604,6 +610,28 @@ impl Transaction {
         self.writes.push(write);
         Ok(())
     }
+}
 
-    // update_with_precondition
+pub enum Precondition {
+    Exists(bool),
+    UpdateTime(Timestamp),
+}
+
+impl Precondition {
+    fn to_proto(&self) -> google_api_proto::google::firestore::v1::Precondition {
+        google_api_proto::google::firestore::v1::Precondition {
+            condition_type: Some(match self {
+                Precondition::Exists(exists) => {
+                    google_api_proto::google::firestore::v1::precondition::ConditionType::Exists(
+                        *exists,
+                    )
+                }
+                Precondition::UpdateTime(update_time) => {
+                    google_api_proto::google::firestore::v1::precondition::ConditionType::UpdateTime(
+                        prost_types::Timestamp::from(*update_time),
+                    )
+                }
+            }),
+        }
+    }
 }

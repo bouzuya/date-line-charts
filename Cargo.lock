@@ -458,6 +458,7 @@ dependencies = [
  "google-cloud-auth",
  "google-cloud-token",
  "prost",
+ "prost-types",
  "serde",
  "serde-firestore-value",
  "serde_json",
