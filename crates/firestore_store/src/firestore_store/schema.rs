@@ -5,6 +5,14 @@ pub(crate) struct ChartDocumentData {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub(crate) struct DataPointDocumentData {
+    pub(crate) chart_id: String,
+    pub(crate) created_at: String,
+    pub(crate) x_value: String,
+    pub(crate) y_value: i64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub(crate) struct EventStreamDocumentData {
     pub(crate) id: String,
     pub(crate) last_event_at: String,
@@ -45,6 +53,7 @@ pub struct Updated {
 pub(crate) struct UpdaterMetadataDocumentData {
     pub(crate) last_processed_event_at: String,
 }
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub(crate) struct UpdaterMetadataProcessedEventDocumentData {}
 

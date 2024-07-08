@@ -6,10 +6,12 @@ use write_model::{
         event::{Created, Deleted, Updated},
         Event, EventData,
     },
-    value_object::{ChartId, DateTime},
+    value_object::{ChartId, DateTime, XValue, YValue},
 };
 
-use crate::schema::{self, ChartDocumentData, ChartEventDataDocumentData, EventDocumentData};
+use crate::schema::{
+    self, ChartDocumentData, ChartEventDataDocumentData, DataPointDocumentData, EventDocumentData,
+};
 
 pub(crate) fn query_data_from_document(
     document: Document<ChartDocumentData>,
@@ -18,6 +20,17 @@ pub(crate) fn query_data_from_document(
         created_at: DateTime::from_str(&document.fields.created_at)?,
         id: ChartId::from_str(document.name.document_id().as_ref())?,
         title: document.fields.title,
+    })
+}
+
+pub(crate) fn data_point_query_data_from_document(
+    document: Document<DataPointDocumentData>,
+) -> Result<query_use_case::port::DataPointQueryData, Box<dyn std::error::Error + Send + Sync>> {
+    Ok(query_use_case::port::DataPointQueryData {
+        chart_id: ChartId::from_str(&document.fields.chart_id)?,
+        created_at: DateTime::from_str(&document.fields.created_at)?,
+        x_value: XValue::from_str(&document.fields.x_value)?,
+        y_value: YValue::from(u32::try_from(document.fields.y_value)?),
     })
 }
 

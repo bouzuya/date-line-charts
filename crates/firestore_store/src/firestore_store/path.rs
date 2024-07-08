@@ -4,7 +4,7 @@ use firestore_client::{
     path::{CollectionId, DocumentId},
     CollectionPath, DocumentPath,
 };
-use write_model::value_object::{ChartId, EventId};
+use write_model::value_object::{ChartId, DataPointId, EventId};
 
 pub(crate) fn query_updater_document() -> DocumentPath {
     CollectionPath::new(
@@ -35,6 +35,20 @@ pub(crate) fn chart_document(chart_id: ChartId) -> DocumentPath {
     chart_collection()
         .doc(DocumentId::from_str(&chart_id.to_string()).expect("chart id to be valid document id"))
         .expect("chart document path to be valid document path")
+}
+
+pub(crate) fn data_point_collection(chart_id: ChartId) -> CollectionPath {
+    chart_document(chart_id)
+        .collection(
+            CollectionId::from_str("data_points").expect("data point collection id to be valid"),
+        )
+        .expect("data point collection path to be valid")
+}
+
+pub(crate) fn data_point_document(data_point_id: DataPointId) -> DocumentPath {
+    data_point_collection(data_point_id.chart_id())
+        .doc(DocumentId::from_str(&data_point_id.to_string()).expect("data point id to be valid"))
+        .expect("data point document path to be valid")
 }
 
 // events
