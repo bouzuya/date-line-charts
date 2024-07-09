@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0.86"
-async-trait = "0.1.80"
+async-trait = "0.1.81"
 command_use_case = { path = "crates/command_use_case" }
 file_system_store = { path = "crates/file_system_store" }
 firestore_client = { path = "crates/firestore_client" }
