@@ -1,9 +1,9 @@
-use std::str::FromStr as _;
+use std::{fmt::Display, str::FromStr as _};
 
 use firestore_client::Document;
 use write_model::{
     aggregate::chart::{
-        event::{Created, Deleted, Updated},
+        event::{BaseEvent, Created, Deleted, Updated},
         Event, EventData,
     },
     value_object::{ChartId, DateTime, XValue, YValue},
@@ -54,7 +54,22 @@ pub(crate) fn chart_event_from_document(
     })
 }
 
-pub(crate) fn document_data_from_chart_event_data(
+pub(crate) fn event_document_data_from_event<I>(
+    event: &BaseEvent<I, EventData>,
+) -> EventDocumentData
+where
+    I: Display,
+{
+    EventDocumentData {
+        at: event.at.to_string(),
+        data: serde_json::to_string(&document_data_from_chart_event_data(&event.data)).unwrap(),
+        id: event.id.to_string(),
+        stream_id: event.stream_id.to_string(),
+        version: i64::from(event.version),
+    }
+}
+
+fn document_data_from_chart_event_data(
     event_data: &write_model::aggregate::chart::EventData,
 ) -> ChartEventDataDocumentData {
     match event_data {

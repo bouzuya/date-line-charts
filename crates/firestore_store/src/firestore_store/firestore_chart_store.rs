@@ -178,15 +178,7 @@ impl FirestoreChartStore {
         for event in events {
             transaction.create(
                 &path::event_document(event.id),
-                &EventDocumentData {
-                    at: event.at.to_string(),
-                    data: serde_json::to_string(&converter::document_data_from_chart_event_data(
-                        &event.data,
-                    ))?,
-                    id: event.id.to_string(),
-                    stream_id: event.stream_id.to_string(),
-                    version: i64::from(event.version),
-                },
+                &converter::event_document_data_from_event(&event),
             )?;
         }
         Ok(())
