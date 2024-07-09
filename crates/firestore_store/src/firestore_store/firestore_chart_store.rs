@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, str::FromStr};
+use std::{fmt::Display, future::Future, pin::Pin, str::FromStr};
 
 use crate::{
     converter, path,
@@ -10,7 +10,10 @@ use crate::{
 };
 use firestore_client::{FieldPath, Filter, FirestoreClient, Precondition, Transaction};
 use write_model::{
-    aggregate::{chart::Event, Chart},
+    aggregate::{
+        chart::{event::BaseEvent, Event, EventData},
+        Chart,
+    },
     value_object::{ChartId, EventId, EventStreamId, Version},
 };
 
@@ -120,10 +123,10 @@ impl FirestoreChartStore {
         result
     }
 
-    async fn repository_store_impl_transaction(
+    async fn repository_store_impl_transaction<I: Display>(
         transaction: &mut Transaction,
         current: Option<Version>,
-        events: Vec<Event>,
+        events: Vec<BaseEvent<I, EventData>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
         let last_event_version = events

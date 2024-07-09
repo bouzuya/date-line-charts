@@ -1,9 +1,11 @@
+use std::fmt::Display;
+
 use crate::value_object::{ChartId, DateTime, EventId, Version};
 
 pub type Event = BaseEvent<ChartId, EventData>;
 
 #[derive(Clone, Debug)]
-pub struct BaseEvent<I, D> {
+pub struct BaseEvent<I: Display, D> {
     pub at: DateTime,
     pub data: D,
     pub id: EventId,
@@ -11,7 +13,7 @@ pub struct BaseEvent<I, D> {
     pub version: Version,
 }
 
-impl<I, D> BaseEvent<I, D> {
+impl<I: Display, D> BaseEvent<I, D> {
     pub fn new(stream_id: I, data: D, version: Version) -> Self {
         Self {
             at: DateTime::now(),
