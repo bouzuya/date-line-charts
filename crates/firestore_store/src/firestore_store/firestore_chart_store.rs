@@ -70,7 +70,7 @@ impl FirestoreChartStore {
         loop {
             let documents = self
                 .0
-                .run_collection_query::<EventDocumentData<ChartEventDataDocumentData>>(
+                .run_collection_query::<EventDocumentData>(
                     &collection_path,
                     Some(Filter::and([FieldPath::raw("stream_id")
                         .equal(firestore_client::to_value(&id.to_string())?)?])),
@@ -180,7 +180,9 @@ impl FirestoreChartStore {
                 &path::event_document(event.id),
                 &EventDocumentData {
                     at: event.at.to_string(),
-                    data: converter::document_data_from_chart_event_data(&event.data),
+                    data: serde_json::to_string(&converter::document_data_from_chart_event_data(
+                        &event.data,
+                    ))?,
                     id: event.id.to_string(),
                     stream_id: event.stream_id.to_string(),
                     version: i64::from(event.version),
@@ -202,7 +204,7 @@ impl FirestoreChartStore {
             .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_owned());
         let events = self
             .0
-            .run_collection_query::<EventDocumentData<ChartEventDataDocumentData>>(
+            .run_collection_query::<EventDocumentData>(
                 &path::event_collection(),
                 Some(Filter::and([FieldPath::raw("at").greater_than_or_equal(
                     // FIXME: last_processed_event_at - 10s
@@ -244,7 +246,9 @@ impl FirestoreChartStore {
 
                         let chart_id = ChartId::from_str(&event.fields.stream_id)?;
                         let chart_document_path = path::chart_document(chart_id);
-                        match event.fields.data {
+                        match serde_json::from_str::<ChartEventDataDocumentData>(
+                            &event.fields.data,
+                        )? {
                             ChartEventDataDocumentData::Created(schema::Created { title }) => {
                                 transaction.create(
                                     &chart_document_path,
@@ -393,6 +397,7 @@ mod tests {
 
     use super::*;
 
+    #[ignore = "requires Firestore"]
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
         let store = FirestoreChartStore::new()

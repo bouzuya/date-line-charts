@@ -35,11 +35,11 @@ pub(crate) fn data_point_query_data_from_document(
 }
 
 pub(crate) fn chart_event_from_document(
-    document: Document<EventDocumentData<ChartEventDataDocumentData>>,
+    document: Document<EventDocumentData>,
 ) -> Result<Event, Box<dyn std::error::Error + Send + Sync>> {
     Ok(Event {
         at: DateTime::from_str(&document.fields.at)?,
-        data: match document.fields.data {
+        data: match serde_json::from_str::<ChartEventDataDocumentData>(&document.fields.data)? {
             ChartEventDataDocumentData::Created(data) => {
                 EventData::Created(Created { title: data.title })
             }
