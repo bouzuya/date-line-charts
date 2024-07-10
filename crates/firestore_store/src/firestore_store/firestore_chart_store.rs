@@ -1,4 +1,4 @@
-use std::{fmt::Display, future::Future, pin::Pin, str::FromStr};
+use std::{future::Future, pin::Pin, str::FromStr};
 
 use crate::{
     converter, path,
@@ -10,10 +10,8 @@ use crate::{
 };
 use firestore_client::{FieldPath, Filter, FirestoreClient, Precondition, Transaction};
 use write_model::{
-    aggregate::{
-        chart::{event::BaseEvent, Event, EventData},
-        Chart,
-    },
+    aggregate::Chart,
+    event::ChartEvent,
     value_object::{ChartId, EventId, EventStreamId, Version},
 };
 
@@ -95,14 +93,14 @@ impl FirestoreChartStore {
         let events = all_documents
             .into_iter()
             .map(converter::chart_event_from_document)
-            .collect::<Result<Vec<Event>, Box<dyn std::error::Error + Send + Sync>>>()?;
+            .collect::<Result<Vec<ChartEvent>, Box<dyn std::error::Error + Send + Sync>>>()?;
         Ok(Some(Chart::from_events(&events)?))
     }
 
     async fn repository_store_impl(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if events.is_empty() {
             return Ok(());
@@ -123,10 +121,10 @@ impl FirestoreChartStore {
         result
     }
 
-    async fn repository_store_impl_transaction<I: Display>(
+    async fn repository_store_impl_transaction(
         transaction: &mut Transaction,
         current: Option<Version>,
-        events: Vec<BaseEvent<I, EventData>>,
+        events: Vec<ChartEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let event_stream_id = EventStreamId::from_str(events[0].stream_id.to_string().as_str())?;
         let last_event_version = events
@@ -375,7 +373,7 @@ impl command_use_case::port::ChartRepository for FirestoreChartStore {
     async fn store(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), command_use_case::port::chart_repository::Error> {
         self.repository_store_impl(current, events)
             .await

@@ -1,9 +1,8 @@
-pub mod event;
-
 use crate::value_object::{ChartId, DataPointId, DateTime, Version, XValue, YValue};
 
-use self::event::{Created, Deleted, Updated};
-pub use self::event::{Event, EventData};
+use crate::event::{
+    DataPointCreated, DataPointDeleted, DataPointEvent, DataPointEventData, DataPointUpdated,
+};
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -30,10 +29,10 @@ impl DataPoint {
         chart_id: ChartId,
         x_value: XValue,
         y_value: YValue,
-    ) -> Result<(Self, Vec<Event>), Error> {
-        let events = vec![Event::new(
+    ) -> Result<(Self, Vec<DataPointEvent>), Error> {
+        let events = vec![DataPointEvent::new(
             DataPointId::new(chart_id, x_value),
-            EventData::Created(Created { value: y_value }),
+            DataPointEventData::Created(DataPointCreated { value: y_value }),
             Version::new(),
         )];
         let state = Self {
@@ -45,12 +44,12 @@ impl DataPoint {
         Ok((state, events))
     }
 
-    pub fn from_events(events: &[Event]) -> Result<Self, Error> {
+    pub fn from_events(events: &[DataPointEvent]) -> Result<Self, Error> {
         let mut state = match events.first() {
             None => return Err(Error::NoCreatedEvent),
-            Some(Event {
+            Some(DataPointEvent {
                 at: _,
-                data: EventData::Created(event),
+                data: DataPointEventData::Created(event),
                 id: _,
                 stream_id,
                 version,
@@ -84,13 +83,13 @@ impl DataPoint {
         self.id.chart_id()
     }
 
-    pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
+    pub fn delete(&self) -> Result<(Self, Vec<DataPointEvent>), Error> {
         if self.deleted_at.is_some() {
             return Err(Error::AlreadyDeleted);
         }
-        let events = vec![Event::new(
+        let events = vec![DataPointEvent::new(
             self.id,
-            EventData::Deleted(Deleted {}),
+            DataPointEventData::Deleted(DataPointDeleted {}),
             self.version.next().map_err(|_| Error::VersionOverflow)?,
         )];
         let mut state = self.clone();
@@ -114,13 +113,13 @@ impl DataPoint {
         self.y_value
     }
 
-    pub fn update(&self, y_value: YValue) -> Result<(Self, Vec<Event>), Error> {
+    pub fn update(&self, y_value: YValue) -> Result<(Self, Vec<DataPointEvent>), Error> {
         if self.deleted_at.is_some() {
             return Err(Error::AlreadyDeleted);
         }
-        let events = vec![Event::new(
+        let events = vec![DataPointEvent::new(
             self.id,
-            EventData::Updated(Updated { value: y_value }),
+            DataPointEventData::Updated(DataPointUpdated { value: y_value }),
             self.version.next().map_err(|_| Error::VersionOverflow)?,
         )];
         let mut state = self.clone();
@@ -132,17 +131,17 @@ impl DataPoint {
         self.version
     }
 
-    fn apply_events(&mut self, events: &[Event]) -> Result<(), Error> {
+    fn apply_events(&mut self, events: &[DataPointEvent]) -> Result<(), Error> {
         for event in events {
             let at = event.at;
             let version = event.version;
             match &event.data {
-                EventData::Created(_) => return Err(Error::MultipleCreatedEvent),
-                EventData::Updated(e) => {
+                DataPointEventData::Created(_) => return Err(Error::MultipleCreatedEvent),
+                DataPointEventData::Updated(e) => {
                     self.version = version;
                     self.y_value = e.value;
                 }
-                EventData::Deleted(_) => {
+                DataPointEventData::Deleted(_) => {
                     self.deleted_at = Some(at);
                     self.version = version;
                 }
@@ -229,7 +228,7 @@ mod tests {
         Ok(())
     }
 
-    fn build_data_point() -> anyhow::Result<(DataPoint, Vec<Event>)> {
+    fn build_data_point() -> anyhow::Result<(DataPoint, Vec<DataPointEvent>)> {
         let chart_id = ChartId::generate();
         Ok(DataPoint::create(
             chart_id,

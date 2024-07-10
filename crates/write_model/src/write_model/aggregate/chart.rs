@@ -1,9 +1,6 @@
-pub mod event;
-
 use crate::value_object::{ChartId, DateTime, Version};
 
-use self::event::{Created, Deleted, Updated};
-pub use self::event::{Event, EventData};
+use crate::event::{ChartCreated, ChartDeleted, ChartEvent, ChartEventData, ChartUpdated};
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -28,13 +25,13 @@ pub struct Chart {
 }
 
 impl Chart {
-    pub fn create(title: String) -> Result<(Self, Vec<Event>), Error> {
+    pub fn create(title: String) -> Result<(Self, Vec<ChartEvent>), Error> {
         if title.is_empty() {
             return Err(Error::InvalidTitle);
         }
-        let events = vec![Event::new(
+        let events = vec![ChartEvent::new(
             ChartId::generate(),
-            EventData::Created(Created {
+            ChartEventData::Created(ChartCreated {
                 title: title.clone(),
             }),
             Version::new(),
@@ -48,12 +45,12 @@ impl Chart {
         Ok((state, events))
     }
 
-    pub fn from_events(events: &[Event]) -> Result<Self, Error> {
+    pub fn from_events(events: &[ChartEvent]) -> Result<Self, Error> {
         let mut state = match events.first() {
             None => return Err(Error::NoCreatedEvent),
-            Some(Event {
+            Some(ChartEvent {
                 at: _,
-                data: EventData::Created(event),
+                data: ChartEventData::Created(event),
                 id: _,
                 stream_id,
                 version,
@@ -83,13 +80,13 @@ impl Chart {
         }
     }
 
-    pub fn delete(&self) -> Result<(Self, Vec<Event>), Error> {
+    pub fn delete(&self) -> Result<(Self, Vec<ChartEvent>), Error> {
         if self.deleted_at.is_some() {
             return Err(Error::AlreadyDeleted);
         }
-        let events = vec![Event::new(
+        let events = vec![ChartEvent::new(
             self.id,
-            EventData::Deleted(Deleted {}),
+            ChartEventData::Deleted(ChartDeleted {}),
             self.version.next().map_err(|_| Error::VersionOverflow)?,
         )];
         let mut state = self.clone();
@@ -109,16 +106,16 @@ impl Chart {
         &self.title
     }
 
-    pub fn update(&self, title: String) -> Result<(Self, Vec<Event>), Error> {
+    pub fn update(&self, title: String) -> Result<(Self, Vec<ChartEvent>), Error> {
         if self.deleted_at.is_some() {
             return Err(Error::AlreadyDeleted);
         }
         if title.is_empty() {
             return Err(Error::InvalidTitle);
         }
-        let events = vec![Event::new(
+        let events = vec![ChartEvent::new(
             self.id,
-            EventData::Updated(Updated {
+            ChartEventData::Updated(ChartUpdated {
                 title: title.clone(),
             }),
             self.version.next().map_err(|_| Error::VersionOverflow)?,
@@ -132,17 +129,17 @@ impl Chart {
         self.version
     }
 
-    fn apply_events(&mut self, events: &[Event]) -> Result<(), Error> {
+    fn apply_events(&mut self, events: &[ChartEvent]) -> Result<(), Error> {
         for event in events {
             let at = event.at;
             let version = event.version;
             match &event.data {
-                EventData::Created(_) => return Err(Error::MultipleCreatedEvent),
-                EventData::Updated(e) => {
+                ChartEventData::Created(_) => return Err(Error::MultipleCreatedEvent),
+                ChartEventData::Updated(e) => {
                     self.title.clone_from(&e.title);
                     self.version = version;
                 }
-                EventData::Deleted(_) => {
+                ChartEventData::Deleted(_) => {
                     self.deleted_at = Some(at);
                     self.version = version;
                 }
@@ -216,7 +213,7 @@ mod tests {
         Ok(())
     }
 
-    fn build_chart() -> anyhow::Result<(Chart, Vec<Event>)> {
+    fn build_chart() -> anyhow::Result<(Chart, Vec<ChartEvent>)> {
         Ok(Chart::create("title".to_string())?)
     }
 }

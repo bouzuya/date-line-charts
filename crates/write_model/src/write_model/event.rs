@@ -19,6 +19,18 @@ pub struct BaseEvent<ES: EventStream> {
     pub version: Version,
 }
 
+impl<ES: EventStream> BaseEvent<ES> {
+    pub fn new(stream_id: ES::Id, data: ES::Data, version: Version) -> Self {
+        Self {
+            at: DateTime::now(),
+            data,
+            id: EventId::generate(),
+            stream_id,
+            version,
+        }
+    }
+}
+
 pub trait EventStream {
     type Data;
     type Id;

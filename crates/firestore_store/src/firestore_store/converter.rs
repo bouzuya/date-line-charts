@@ -1,11 +1,8 @@
-use std::{fmt::Display, str::FromStr as _};
+use std::str::FromStr as _;
 
 use firestore_client::Document;
 use write_model::{
-    aggregate::chart::{
-        event::{BaseEvent, Created, Deleted, Updated},
-        Event, EventData,
-    },
+    event::{ChartCreated, ChartDeleted, ChartEvent, ChartEventData, ChartUpdated},
     value_object::{ChartId, DateTime, XValue, YValue},
 };
 
@@ -36,16 +33,16 @@ pub(crate) fn data_point_query_data_from_document(
 
 pub(crate) fn chart_event_from_document(
     document: Document<EventDocumentData>,
-) -> Result<Event, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(Event {
+) -> Result<ChartEvent, Box<dyn std::error::Error + Send + Sync>> {
+    Ok(ChartEvent {
         at: DateTime::from_str(&document.fields.at)?,
         data: match serde_json::from_str::<ChartEventDataDocumentData>(&document.fields.data)? {
             ChartEventDataDocumentData::Created(data) => {
-                EventData::Created(Created { title: data.title })
+                ChartEventData::Created(ChartCreated { title: data.title })
             }
-            ChartEventDataDocumentData::Deleted(_) => EventData::Deleted(Deleted {}),
+            ChartEventDataDocumentData::Deleted(_) => ChartEventData::Deleted(ChartDeleted {}),
             ChartEventDataDocumentData::Updated(data) => {
-                EventData::Updated(Updated { title: data.title })
+                ChartEventData::Updated(ChartUpdated { title: data.title })
             }
         },
         id: write_model::value_object::EventId::from_str(document.name.document_id().as_ref())?,
@@ -54,12 +51,7 @@ pub(crate) fn chart_event_from_document(
     })
 }
 
-pub(crate) fn event_document_data_from_event<I>(
-    event: &BaseEvent<I, EventData>,
-) -> EventDocumentData
-where
-    I: Display,
-{
+pub(crate) fn event_document_data_from_event(event: &ChartEvent) -> EventDocumentData {
     EventDocumentData {
         at: event.at.to_string(),
         data: serde_json::to_string(&document_data_from_chart_event_data(&event.data)).unwrap(),
@@ -70,18 +62,18 @@ where
 }
 
 fn document_data_from_chart_event_data(
-    event_data: &write_model::aggregate::chart::EventData,
+    event_data: &write_model::event::ChartEventData,
 ) -> ChartEventDataDocumentData {
     match event_data {
-        write_model::aggregate::chart::EventData::Created(data) => {
+        write_model::event::ChartEventData::Created(data) => {
             ChartEventDataDocumentData::Created(schema::Created {
                 title: data.title.to_owned(),
             })
         }
-        write_model::aggregate::chart::EventData::Deleted(_) => {
+        write_model::event::ChartEventData::Deleted(_) => {
             ChartEventDataDocumentData::Deleted(schema::Deleted {})
         }
-        write_model::aggregate::chart::EventData::Updated(data) => {
+        write_model::event::ChartEventData::Updated(data) => {
             ChartEventDataDocumentData::Updated(schema::Updated {
                 title: data.title.to_owned(),
             })

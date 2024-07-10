@@ -8,13 +8,8 @@ use std::{
 
 use tokio::sync::Mutex;
 use write_model::{
-    aggregate::{
-        chart::{
-            event::{BaseEvent, Created, Deleted, Updated},
-            Event, EventData,
-        },
-        Chart,
-    },
+    aggregate::Chart,
+    event::{BaseEvent, ChartCreated, ChartDeleted, ChartEvent, ChartEventData, ChartUpdated},
     value_object::{ChartId, Version},
 };
 
@@ -48,7 +43,7 @@ struct EventJsonDataUpdated {
     title: String,
 }
 
-impl From<&Event> for EventJson {
+impl From<&ChartEvent> for EventJson {
     fn from(
         BaseEvent {
             at,
@@ -56,18 +51,20 @@ impl From<&Event> for EventJson {
             id,
             stream_id,
             version,
-        }: &Event,
+        }: &ChartEvent,
     ) -> Self {
         Self {
             at: at.to_string(),
             data: match data {
-                EventData::Created(Created { title }) => {
+                ChartEventData::Created(ChartCreated { title }) => {
                     EventJsonData::Created(EventJsonDataCreated {
                         title: title.to_owned(),
                     })
                 }
-                EventData::Deleted(Deleted {}) => EventJsonData::Deleted(EventJsonDataDeleted {}),
-                EventData::Updated(Updated { title }) => {
+                ChartEventData::Deleted(ChartDeleted {}) => {
+                    EventJsonData::Deleted(EventJsonDataDeleted {})
+                }
+                ChartEventData::Updated(ChartUpdated { title }) => {
                     EventJsonData::Updated(EventJsonDataUpdated {
                         title: title.to_owned(),
                     })
@@ -80,7 +77,7 @@ impl From<&Event> for EventJson {
     }
 }
 
-impl TryFrom<EventJson> for Event {
+impl TryFrom<EventJson> for ChartEvent {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(
@@ -94,14 +91,14 @@ impl TryFrom<EventJson> for Event {
     ) -> Result<Self, Self::Error> {
         let data = match data {
             EventJsonData::Created(EventJsonDataCreated { title }) => {
-                EventData::Created(Created { title })
+                ChartEventData::Created(ChartCreated { title })
             }
-            EventJsonData::Deleted(_) => EventData::Deleted(Deleted {}),
+            EventJsonData::Deleted(_) => ChartEventData::Deleted(ChartDeleted {}),
             EventJsonData::Updated(EventJsonDataUpdated { title }) => {
-                EventData::Updated(Updated { title })
+                ChartEventData::Updated(ChartUpdated { title })
             }
         };
-        Ok(Event {
+        Ok(ChartEvent {
             at: at.parse()?,
             data,
             id: id.parse()?,
@@ -112,7 +109,7 @@ impl TryFrom<EventJson> for Event {
 }
 
 struct Cache {
-    command_data: BTreeMap<ChartId, Vec<Event>>,
+    command_data: BTreeMap<ChartId, Vec<ChartEvent>>,
     query_data: Vec<query_use_case::port::ChartQueryData>,
 }
 
@@ -199,7 +196,7 @@ impl FileSystemChartStore {
                 break;
             }
             let event_json = serde_json::from_str::<EventJson>(&buf)?;
-            let event = Event::try_from(event_json)?;
+            let event = ChartEvent::try_from(event_json)?;
             buf.clear();
             Self::apply_event_to_query_data(&mut query_data, &event)?;
             command_data
@@ -217,7 +214,7 @@ impl FileSystemChartStore {
     async fn store_impl(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut cache = self.cache.lock().await;
         if cache.is_none() {
@@ -263,17 +260,17 @@ impl FileSystemChartStore {
 
     fn apply_event_to_query_data(
         query_data: &mut Vec<query_use_case::port::ChartQueryData>,
-        event: &Event,
+        event: &ChartEvent,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         match &event.data {
-            write_model::aggregate::chart::EventData::Created(data) => {
+            write_model::event::ChartEventData::Created(data) => {
                 query_data.push(query_use_case::port::ChartQueryData {
                     created_at: event.at,
                     id: event.stream_id,
                     title: data.title.clone(),
                 });
             }
-            write_model::aggregate::chart::EventData::Deleted(_) => {
+            write_model::event::ChartEventData::Deleted(_) => {
                 if let Some(index) = query_data
                     .iter()
                     .position(|chart| chart.id == event.stream_id)
@@ -281,7 +278,7 @@ impl FileSystemChartStore {
                     query_data.remove(index);
                 }
             }
-            write_model::aggregate::chart::EventData::Updated(data) => {
+            write_model::event::ChartEventData::Updated(data) => {
                 let index = query_data
                     .iter()
                     .position(|chart| chart.id == event.stream_id)
@@ -307,7 +304,7 @@ impl command_use_case::port::ChartRepository for FileSystemChartStore {
     async fn store(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), command_use_case::port::chart_repository::Error> {
         self.store_impl(current, events)
             .await

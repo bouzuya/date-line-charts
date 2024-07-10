@@ -8,13 +8,10 @@ use std::{
 
 use tokio::sync::Mutex;
 use write_model::{
-    aggregate::{
-        chart::event::BaseEvent,
-        data_point::{
-            event::{Created, Deleted, Updated},
-            Event, EventData,
-        },
-        DataPoint,
+    aggregate::DataPoint,
+    event::{
+        BaseEvent, DataPointCreated, DataPointDeleted, DataPointEvent, DataPointEventData,
+        DataPointUpdated,
     },
     value_object::{ChartId, DataPointId, Version, YValue},
 };
@@ -49,7 +46,7 @@ struct EventJsonDataUpdated {
     value: u32,
 }
 
-impl From<&Event> for EventJson {
+impl From<&DataPointEvent> for EventJson {
     fn from(
         BaseEvent {
             at,
@@ -57,18 +54,20 @@ impl From<&Event> for EventJson {
             id,
             stream_id,
             version,
-        }: &Event,
+        }: &DataPointEvent,
     ) -> Self {
         Self {
             at: at.to_string(),
             data: match data {
-                EventData::Created(Created { value }) => {
+                DataPointEventData::Created(DataPointCreated { value }) => {
                     EventJsonData::Created(EventJsonDataCreated {
                         value: u32::from(*value),
                     })
                 }
-                EventData::Deleted(Deleted {}) => EventJsonData::Deleted(EventJsonDataDeleted {}),
-                EventData::Updated(Updated { value }) => {
+                DataPointEventData::Deleted(DataPointDeleted {}) => {
+                    EventJsonData::Deleted(EventJsonDataDeleted {})
+                }
+                DataPointEventData::Updated(DataPointUpdated { value }) => {
                     EventJsonData::Updated(EventJsonDataUpdated {
                         value: u32::from(*value),
                     })
@@ -81,7 +80,7 @@ impl From<&Event> for EventJson {
     }
 }
 
-impl TryFrom<EventJson> for Event {
+impl TryFrom<EventJson> for DataPointEvent {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn try_from(
@@ -94,15 +93,19 @@ impl TryFrom<EventJson> for Event {
         }: EventJson,
     ) -> Result<Self, Self::Error> {
         let data = match data {
-            EventJsonData::Created(EventJsonDataCreated { value }) => EventData::Created(Created {
-                value: YValue::from(value),
-            }),
-            EventJsonData::Deleted(_) => EventData::Deleted(Deleted {}),
-            EventJsonData::Updated(EventJsonDataUpdated { value }) => EventData::Updated(Updated {
-                value: YValue::from(value),
-            }),
+            EventJsonData::Created(EventJsonDataCreated { value }) => {
+                DataPointEventData::Created(DataPointCreated {
+                    value: YValue::from(value),
+                })
+            }
+            EventJsonData::Deleted(_) => DataPointEventData::Deleted(DataPointDeleted {}),
+            EventJsonData::Updated(EventJsonDataUpdated { value }) => {
+                DataPointEventData::Updated(DataPointUpdated {
+                    value: YValue::from(value),
+                })
+            }
         };
-        Ok(Event {
+        Ok(DataPointEvent {
             at: at.parse()?,
             data,
             id: id.parse()?,
@@ -113,7 +116,7 @@ impl TryFrom<EventJson> for Event {
 }
 
 struct Cache {
-    command_data: BTreeMap<DataPointId, Vec<Event>>,
+    command_data: BTreeMap<DataPointId, Vec<DataPointEvent>>,
     query_data: Vec<query_use_case::port::DataPointQueryData>,
 }
 
@@ -212,7 +215,7 @@ impl FileSystemDataPointStore {
                 break;
             }
             let event_json = serde_json::from_str::<EventJson>(&buf)?;
-            let event = Event::try_from(event_json)?;
+            let event = DataPointEvent::try_from(event_json)?;
             buf.clear();
             Self::apply_event_to_query_data(&mut query_data, &event)?;
             command_data
@@ -230,7 +233,7 @@ impl FileSystemDataPointStore {
     async fn store_impl(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[DataPointEvent],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut cache = self.cache.lock().await;
         if cache.is_none() {
@@ -276,10 +279,10 @@ impl FileSystemDataPointStore {
 
     fn apply_event_to_query_data(
         query_data: &mut Vec<query_use_case::port::DataPointQueryData>,
-        event: &Event,
+        event: &DataPointEvent,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         match &event.data {
-            write_model::aggregate::data_point::EventData::Created(data) => {
+            write_model::event::DataPointEventData::Created(data) => {
                 query_data.push(query_use_case::port::DataPointQueryData {
                     chart_id: event.stream_id.chart_id(),
                     created_at: event.at,
@@ -287,7 +290,7 @@ impl FileSystemDataPointStore {
                     y_value: data.value,
                 });
             }
-            write_model::aggregate::data_point::EventData::Deleted(_) => {
+            write_model::event::DataPointEventData::Deleted(_) => {
                 if let Some(index) = query_data.iter().position(|data_point| {
                     data_point.chart_id == event.stream_id.chart_id()
                         && data_point.x_value == event.stream_id.x_value()
@@ -295,7 +298,7 @@ impl FileSystemDataPointStore {
                     query_data.remove(index);
                 }
             }
-            write_model::aggregate::data_point::EventData::Updated(data) => {
+            write_model::event::DataPointEventData::Updated(data) => {
                 let index = query_data
                     .iter()
                     .position(|data_point| {
@@ -324,7 +327,7 @@ impl command_use_case::port::DataPointRepository for FileSystemDataPointStore {
     async fn store(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[DataPointEvent],
     ) -> Result<(), command_use_case::port::data_point_repository::Error> {
         self.store_impl(current, events)
             .await

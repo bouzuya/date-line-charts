@@ -2,12 +2,13 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use tokio::sync::Mutex;
 use write_model::{
-    aggregate::{chart::Event, Chart},
+    aggregate::Chart,
+    event::ChartEvent,
     value_object::{ChartId, Version},
 };
 
 pub struct InMemoryChartStore {
-    command_data: Arc<Mutex<BTreeMap<ChartId, Vec<Event>>>>,
+    command_data: Arc<Mutex<BTreeMap<ChartId, Vec<ChartEvent>>>>,
     query_data: Arc<Mutex<Vec<query_use_case::port::ChartQueryData>>>,
 }
 
@@ -45,7 +46,7 @@ impl InMemoryChartStore {
     async fn store_impl(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut command_data = self.command_data.lock().await;
         let mut query_data = self.query_data.lock().await;
@@ -68,14 +69,14 @@ impl InMemoryChartStore {
         // query writer
         for event in events {
             match &event.data {
-                write_model::aggregate::chart::EventData::Created(data) => {
+                write_model::event::ChartEventData::Created(data) => {
                     query_data.push(query_use_case::port::ChartQueryData {
                         created_at: event.at,
                         id: event.stream_id,
                         title: data.title.clone(),
                     });
                 }
-                write_model::aggregate::chart::EventData::Deleted(_) => {
+                write_model::event::ChartEventData::Deleted(_) => {
                     if let Some(index) = query_data
                         .iter()
                         .position(|chart| chart.id == event.stream_id)
@@ -83,7 +84,7 @@ impl InMemoryChartStore {
                         query_data.remove(index);
                     }
                 }
-                write_model::aggregate::chart::EventData::Updated(data) => {
+                write_model::event::ChartEventData::Updated(data) => {
                     let index = query_data
                         .iter()
                         .position(|chart| chart.id == event.stream_id)
@@ -137,7 +138,7 @@ impl command_use_case::port::ChartRepository for InMemoryChartStore {
     async fn store(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[ChartEvent],
     ) -> Result<(), command_use_case::port::chart_repository::Error> {
         self.store_impl(current, events)
             .await

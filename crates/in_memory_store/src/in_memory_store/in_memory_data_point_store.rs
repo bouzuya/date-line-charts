@@ -2,12 +2,13 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use tokio::sync::Mutex;
 use write_model::{
-    aggregate::{data_point::Event, DataPoint},
+    aggregate::DataPoint,
+    event::DataPointEvent,
     value_object::{ChartId, DataPointId, Version},
 };
 
 pub struct InMemoryDataPointStore {
-    command_data: Arc<Mutex<BTreeMap<DataPointId, Vec<Event>>>>,
+    command_data: Arc<Mutex<BTreeMap<DataPointId, Vec<DataPointEvent>>>>,
     query_data: Arc<Mutex<Vec<query_use_case::port::DataPointQueryData>>>,
 }
 
@@ -65,7 +66,7 @@ impl InMemoryDataPointStore {
     async fn store_impl(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[DataPointEvent],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut command_data = self.command_data.lock().await;
         let mut query_data = self.query_data.lock().await;
@@ -88,7 +89,7 @@ impl InMemoryDataPointStore {
         // query writer
         for event in events {
             match &event.data {
-                write_model::aggregate::data_point::EventData::Created(data) => {
+                write_model::event::DataPointEventData::Created(data) => {
                     query_data.push(query_use_case::port::DataPointQueryData {
                         created_at: event.at,
                         chart_id: event.stream_id.chart_id(),
@@ -96,7 +97,7 @@ impl InMemoryDataPointStore {
                         y_value: data.value,
                     });
                 }
-                write_model::aggregate::data_point::EventData::Deleted(_) => {
+                write_model::event::DataPointEventData::Deleted(_) => {
                     if let Some(index) = query_data.iter().position(|data_point| {
                         data_point.chart_id == event.stream_id.chart_id()
                             && data_point.x_value == event.stream_id.x_value()
@@ -104,7 +105,7 @@ impl InMemoryDataPointStore {
                         query_data.remove(index);
                     }
                 }
-                write_model::aggregate::data_point::EventData::Updated(data) => {
+                write_model::event::DataPointEventData::Updated(data) => {
                     let index = query_data
                         .iter()
                         .position(|data_point| {
@@ -162,7 +163,7 @@ impl command_use_case::port::DataPointRepository for InMemoryDataPointStore {
     async fn store(
         &self,
         current: Option<Version>,
-        events: &[Event],
+        events: &[DataPointEvent],
     ) -> Result<(), command_use_case::port::data_point_repository::Error> {
         self.store_impl(current, events)
             .await
