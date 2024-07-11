@@ -1,9 +1,57 @@
-use crate::value_object::{ChartId, DataPointId, DateTime, EventId, Version, YValue};
+use std::str::FromStr as _;
+
+use crate::value_object::{
+    ChartId, DataPointId, DateTime, EventId, EventStreamId, Version, YValue,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
     Chart(ChartEvent),
     DataPoint(DataPointEvent),
+}
+
+impl Event {
+    pub fn at(&self) -> DateTime {
+        match self {
+            Self::Chart(event) => event.at,
+            Self::DataPoint(event) => event.at,
+        }
+    }
+
+    pub fn id(&self) -> EventId {
+        match self {
+            Self::Chart(event) => event.id,
+            Self::DataPoint(event) => event.id,
+        }
+    }
+
+    pub fn stream_id(&self) -> EventStreamId {
+        match self {
+            Self::Chart(event) => EventStreamId::from_str(event.stream_id.to_string().as_str())
+                .expect("chart_id to be valid event_stream_id"),
+            Self::DataPoint(event) => EventStreamId::from_str(event.stream_id.to_string().as_str())
+                .expect("data_point_id to be valid event_stream_id"),
+        }
+    }
+
+    pub fn version(&self) -> Version {
+        match self {
+            Self::Chart(event) => event.version,
+            Self::DataPoint(event) => event.version,
+        }
+    }
+}
+
+impl From<ChartEvent> for Event {
+    fn from(event: ChartEvent) -> Self {
+        Self::Chart(event)
+    }
+}
+
+impl From<DataPointEvent> for Event {
+    fn from(event: DataPointEvent) -> Self {
+        Self::DataPoint(event)
+    }
 }
 
 pub type ChartEvent = BaseEvent<ChartEventStream>;
