@@ -2,7 +2,7 @@ use std::str::FromStr as _;
 
 use firestore_client::Document;
 use write_model::{
-    event::{ChartCreated, ChartDeleted, ChartEvent, ChartEventData, ChartUpdated},
+    event::{ChartCreated, ChartDeleted, ChartEvent, ChartEventData, ChartUpdated, Event},
     value_object::{ChartId, DateTime, XValue, YValue},
 };
 
@@ -51,7 +51,17 @@ pub(crate) fn chart_event_from_document(
     })
 }
 
-pub(crate) fn event_document_data_from_event(event: &ChartEvent) -> EventDocumentData {
+pub(crate) fn event_from_document(
+    _document: Document<EventDocumentData>,
+) -> Result<Event, Box<dyn std::error::Error + Send + Sync>> {
+    todo!()
+}
+
+pub(crate) fn event_document_data_from_event(_event: &Event) -> EventDocumentData {
+    todo!()
+}
+
+pub(crate) fn event_document_data_from_chart_event(event: &ChartEvent) -> EventDocumentData {
     EventDocumentData {
         at: event.at.to_string(),
         data: serde_json::to_string(&document_data_from_chart_event_data(&event.data)).unwrap(),

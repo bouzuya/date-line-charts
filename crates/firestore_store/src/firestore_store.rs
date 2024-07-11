@@ -1,6 +1,7 @@
 pub(crate) mod converter;
 mod firestore_chart_store;
 mod firestore_data_point_store;
+pub(crate) mod firestore_event_store;
 pub(crate) mod path;
 pub(crate) mod schema;
 

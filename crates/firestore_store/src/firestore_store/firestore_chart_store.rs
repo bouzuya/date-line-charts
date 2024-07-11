@@ -176,7 +176,7 @@ impl FirestoreChartStore {
         for event in events {
             transaction.create(
                 &path::event_document(event.id),
-                &converter::event_document_data_from_event(&event),
+                &converter::event_document_data_from_chart_event(&event),
             )?;
         }
         Ok(())
