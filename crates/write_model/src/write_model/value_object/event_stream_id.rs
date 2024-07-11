@@ -5,6 +5,12 @@ pub struct Error;
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EventStreamId(String);
 
+impl AsRef<str> for EventStreamId {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 impl std::str::FromStr for EventStreamId {
     type Err = Error;
 
