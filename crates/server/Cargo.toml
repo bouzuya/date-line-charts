@@ -10,6 +10,7 @@ query_use_case.workspace = true
 serde = { version = "1.0.202", features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

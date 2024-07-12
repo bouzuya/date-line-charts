@@ -43,6 +43,7 @@ pub async fn run<
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .map_err(Error::Bind)?;
+    tracing::info!("server listening on port 3000");
     axum::serve(tcp_listener, router)
         .await
         .map_err(Error::Serve)?;

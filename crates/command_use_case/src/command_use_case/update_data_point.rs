@@ -6,11 +6,13 @@ use write_model::value_object::{DataPointId, YValue};
 use crate::command_use_case::port::DataPointRepository;
 use crate::port::HasDataPointRepository;
 
+#[derive(Debug)]
 pub struct Input {
     pub data_point_id: String,
     pub y_value: u32,
 }
 
+#[derive(Debug)]
 pub struct Output;
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +31,7 @@ pub enum Error {
 
 #[async_trait::async_trait]
 pub trait UpdateDataPoint: HasDataPointRepository {
+    #[tracing::instrument(level = tracing::Level::INFO, err(Debug), ret, skip(self))]
     async fn execute(
         &self,
         Input {

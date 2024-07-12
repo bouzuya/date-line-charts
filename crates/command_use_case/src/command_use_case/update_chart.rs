@@ -6,11 +6,13 @@ use write_model::value_object::ChartId;
 use crate::command_use_case::port::ChartRepository;
 use crate::port::HasChartRepository;
 
+#[derive(Debug)]
 pub struct Input {
     pub chart_id: String,
     pub title: String,
 }
 
+#[derive(Debug)]
 pub struct Output;
 
 #[derive(Debug, thiserror::Error)]
@@ -29,6 +31,7 @@ pub enum Error {
 
 #[async_trait::async_trait]
 pub trait UpdateChart: HasChartRepository {
+    #[tracing::instrument(level = tracing::Level::INFO, err(Debug), ret, skip(self))]
     async fn execute(&self, input: Input) -> Result<Output, Error> {
         let chart_repository = self.chart_repository();
         let chart_id = ChartId::from_str(&input.chart_id).map_err(Error::ChartId)?;

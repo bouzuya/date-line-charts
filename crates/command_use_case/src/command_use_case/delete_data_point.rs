@@ -6,10 +6,12 @@ use write_model::value_object::DataPointId;
 use crate::command_use_case::port::DataPointRepository;
 use crate::port::HasDataPointRepository;
 
+#[derive(Debug)]
 pub struct Input {
     pub data_point_id: String,
 }
 
+#[derive(Debug)]
 pub struct Output;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,6 +30,7 @@ pub enum Error {
 
 #[async_trait::async_trait]
 pub trait DeleteDataPoint: HasDataPointRepository {
+    #[tracing::instrument(level = tracing::Level::INFO, err(Debug), ret, skip(self))]
     async fn execute(&self, Input { data_point_id }: Input) -> Result<Output, Error> {
         let data_point_repository = self.data_point_repository();
         let data_point_id = DataPointId::from_str(&data_point_id).map_err(Error::DataPointId)?;

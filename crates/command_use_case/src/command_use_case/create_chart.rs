@@ -6,10 +6,12 @@ use write_model::aggregate::Chart;
 use crate::command_use_case::port::ChartRepository;
 use crate::port::HasChartRepository;
 
+#[derive(Debug)]
 pub struct Input {
     pub title: String,
 }
 
+#[derive(Debug)]
 pub struct Output {
     pub chart_id: String,
 }
@@ -24,6 +26,7 @@ pub enum Error {
 
 #[async_trait::async_trait]
 pub trait CreateChart: HasChartRepository {
+    #[tracing::instrument(level = tracing::Level::INFO, err(Debug), ret, skip(self))]
     async fn execute(&self, input: Input) -> Result<Output, Error> {
         let (state, events) = Chart::create(input.title).map_err(Error::ChartCreate)?;
         self.chart_repository()

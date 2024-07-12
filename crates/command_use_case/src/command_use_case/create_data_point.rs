@@ -9,12 +9,14 @@ use write_model::{
 use crate::port::{ChartRepository, DataPointRepository};
 use crate::port::{HasChartRepository, HasDataPointRepository};
 
+#[derive(Debug)]
 pub struct Input {
     pub chart_id: String,
     pub x_value: String,
     pub y_value: u32,
 }
 
+#[derive(Debug)]
 pub struct Output {
     pub data_point_id: String,
 }
@@ -37,6 +39,7 @@ pub enum Error {
 
 #[async_trait::async_trait]
 pub trait CreateDataPoint: HasChartRepository + HasDataPointRepository {
+    #[tracing::instrument(level = tracing::Level::INFO, err(Debug), ret, skip(self))]
     async fn execute(
         &self,
         Input {
