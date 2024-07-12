@@ -52,13 +52,17 @@ pub(crate) fn chart_event_from_document(
 }
 
 pub(crate) fn event_from_document(
-    _document: Document<EventDocumentData>,
+    document: Document<EventDocumentData>,
 ) -> Result<Event, Box<dyn std::error::Error + Send + Sync>> {
-    todo!()
+    // TODO: Implement DataPoint event
+    chart_event_from_document(document).map(Event::from)
 }
 
-pub(crate) fn event_document_data_from_event(_event: &Event) -> EventDocumentData {
-    todo!()
+pub(crate) fn event_document_data_from_event(event: &Event) -> EventDocumentData {
+    match event {
+        Event::Chart(event) => event_document_data_from_chart_event(event),
+        Event::DataPoint(_) => todo!(),
+    }
 }
 
 pub(crate) fn event_document_data_from_chart_event(event: &ChartEvent) -> EventDocumentData {
