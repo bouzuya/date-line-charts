@@ -81,18 +81,17 @@ impl FirestoreChartStore {
         current: Option<Version>,
         events: Vec<ChartEvent>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self
-            .event_store
+        self.event_store
             .store(
                 current,
                 events.into_iter().map(Event::from).collect::<Vec<Event>>(),
             )
-            .await;
+            .await?;
 
         // To simplify the structure, update the query data at this timing (not supported for failure).
         self.repository_store_impl_update_query_data().await?;
 
-        result
+        Ok(())
     }
 
     async fn repository_store_impl_update_query_data(
