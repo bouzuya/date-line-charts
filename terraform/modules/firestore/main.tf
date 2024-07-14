@@ -8,15 +8,19 @@ resource "google_firestore_database" "default" {
 
 // <https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_index>
 resource "google_firestore_index" "index1" {
-  collection = "col"
+  collection = "events"
   database   = google_firestore_database.default.name
 
   fields {
-    field_path = "name"
+    field_path = "stream_id"
     order      = "ASCENDING"
   }
   fields {
-    field_path = "description"
-    order      = "DESCENDING"
+    field_path = "version"
+    order      = "ASCENDING"
+  }
+  fields {
+    field_path = "__name__"
+    order      = "ASCENDING"
   }
 }
