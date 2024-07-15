@@ -1,9 +1,8 @@
 use std::str::FromStr as _;
 
 use crate::{
-    converter, firestore_event_store::FirestoreEventStore, path, schema::DataPointDocumentData,
+    firestore_event_store::FirestoreEventStore, firestore_query_data_store::FirestoreQueryDataStore,
 };
-use firestore_client::FirestoreClient;
 use write_model::{
     aggregate::DataPoint,
     event::{DataPointEvent, Event},
@@ -11,15 +10,15 @@ use write_model::{
 };
 
 pub struct FirestoreDataPointStore {
-    client: FirestoreClient,
     event_store: FirestoreEventStore,
+    query_data_store: FirestoreQueryDataStore,
 }
 
 impl FirestoreDataPointStore {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
-            client: FirestoreClient::new().await?,
             event_store: FirestoreEventStore::new().await?,
+            query_data_store: FirestoreQueryDataStore::new().await?,
         })
     }
 
@@ -30,11 +29,7 @@ impl FirestoreDataPointStore {
         Option<query_use_case::port::DataPointQueryData>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        self.client
-            .get_document::<DataPointDocumentData>(&path::data_point_document(id))
-            .await?
-            .map(converter::data_point_query_data_from_document)
-            .transpose()
+        self.query_data_store.get_data_point(id).await
     }
 
     async fn reader_list_impl(
@@ -44,15 +39,7 @@ impl FirestoreDataPointStore {
         Vec<query_use_case::port::DataPointQueryData>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
-        let documents = self
-            .client
-            .list_all_documents::<DataPointDocumentData>(&path::data_point_collection(chart_id))
-            .await?;
-        let documents = documents
-            .into_iter()
-            .map(converter::data_point_query_data_from_document)
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(documents)
+        self.query_data_store.list_data_points(chart_id).await
     }
 
     async fn repository_find_impl(
@@ -85,7 +72,8 @@ impl FirestoreDataPointStore {
             )
             .await?;
 
-        // FIXME: update query data
+        // To simplify the structure, update the query data at this timing (not supported for failure).
+        self.query_data_store.update().await?;
 
         Ok(())
     }

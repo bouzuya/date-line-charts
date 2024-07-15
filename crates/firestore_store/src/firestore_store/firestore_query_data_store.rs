@@ -3,12 +3,13 @@ use std::{future::Future, pin::Pin, str::FromStr};
 use crate::{
     converter, path,
     schema::{
-        self, ChartDocumentData, ChartEventDataDocumentData, EventDocumentData,
-        UpdaterMetadataDocumentData, UpdaterMetadataProcessedEventDocumentData,
+        self, ChartDocumentData, ChartEventDataDocumentData, DataPointDocumentData,
+        DataPointEventDataDocumentData, EventDocumentData, UpdaterMetadataDocumentData,
+        UpdaterMetadataProcessedEventDocumentData,
     },
 };
 use firestore_client::{FieldPath, Filter, FirestoreClient, Precondition, Transaction};
-use write_model::value_object::{ChartId, EventId};
+use write_model::value_object::{ChartId, DataPointId, EventId};
 
 pub(crate) struct FirestoreQueryDataStore {
     client: FirestoreClient,
@@ -35,6 +36,20 @@ impl FirestoreQueryDataStore {
             .transpose()
     }
 
+    pub(crate) async fn get_data_point(
+        &self,
+        id: DataPointId,
+    ) -> Result<
+        Option<query_use_case::port::DataPointQueryData>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        self.client
+            .get_document::<DataPointDocumentData>(&path::data_point_document(id))
+            .await?
+            .map(converter::data_point_query_data_from_document)
+            .transpose()
+    }
+
     pub(crate) async fn list_charts(
         &self,
     ) -> Result<Vec<query_use_case::port::ChartQueryData>, Box<dyn std::error::Error + Send + Sync>>
@@ -46,6 +61,24 @@ impl FirestoreQueryDataStore {
         let documents = documents
             .into_iter()
             .map(converter::query_data_from_document)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(documents)
+    }
+
+    pub(crate) async fn list_data_points(
+        &self,
+        chart_id: ChartId,
+    ) -> Result<
+        Vec<query_use_case::port::DataPointQueryData>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let documents = self
+            .client
+            .list_all_documents::<DataPointDocumentData>(&path::data_point_collection(chart_id))
+            .await?;
+        let documents = documents
+            .into_iter()
+            .map(converter::data_point_query_data_from_document)
             .collect::<Result<Vec<_>, _>>()?;
         Ok(documents)
     }
@@ -100,41 +133,86 @@ impl FirestoreQueryDataStore {
                             &UpdaterMetadataProcessedEventDocumentData {},
                         )?;
 
-                        let chart_id = ChartId::from_str(&event.fields.stream_id)?;
-                        let chart_document_path = path::chart_document(chart_id);
                         match event.fields.data {
-                            schema::EventDataDocumentData::Chart(event_data) => match event_data {
-                                ChartEventDataDocumentData::Created(
-                                    schema::chart_event_data_document_data::Created { title },
-                                ) => {
-                                    transaction.create(
-                                        &chart_document_path,
-                                        &ChartDocumentData {
-                                            created_at: event.fields.at.clone(),
-                                            title,
-                                        },
-                                    )?;
+                            schema::EventDataDocumentData::Chart(event_data) => {
+                                let chart_id = ChartId::from_str(&event.fields.stream_id)?;
+                                let chart_document_path = path::chart_document(chart_id);
+                                match event_data {
+                                    ChartEventDataDocumentData::Created(
+                                        schema::chart_event_data_document_data::Created { title },
+                                    ) => {
+                                        transaction.create(
+                                            &chart_document_path,
+                                            &ChartDocumentData {
+                                                created_at: event.fields.at.clone(),
+                                                title,
+                                            },
+                                        )?;
+                                    }
+                                    ChartEventDataDocumentData::Deleted(
+                                        schema::chart_event_data_document_data::Deleted {},
+                                    ) => transaction.delete(&chart_document_path)?,
+                                    ChartEventDataDocumentData::Updated(
+                                        schema::chart_event_data_document_data::Updated { title },
+                                    ) => {
+                                        let document = transaction
+                                            .get::<ChartDocumentData>(&chart_document_path)
+                                            .await?
+                                            .ok_or("not found")?;
+                                        transaction.update(
+                                            &chart_document_path,
+                                            &ChartDocumentData {
+                                                created_at: document.fields.created_at,
+                                                title,
+                                            },
+                                        )?
+                                    }
                                 }
-                                ChartEventDataDocumentData::Deleted(
-                                    schema::chart_event_data_document_data::Deleted {},
-                                ) => transaction.delete(&chart_document_path)?,
-                                ChartEventDataDocumentData::Updated(
-                                    schema::chart_event_data_document_data::Updated { title },
-                                ) => {
-                                    let document = transaction
-                                        .get::<ChartDocumentData>(&chart_document_path)
-                                        .await?
-                                        .ok_or("not found")?;
-                                    transaction.update(
-                                        &chart_document_path,
-                                        &ChartDocumentData {
-                                            created_at: document.fields.created_at,
-                                            title,
+                            }
+                            schema::EventDataDocumentData::DataPoint(event_data) => {
+                                let data_point_id = DataPointId::from_str(&event.fields.stream_id)?;
+                                let data_point_document_path =
+                                    path::data_point_document(data_point_id);
+                                match event_data {
+                                    DataPointEventDataDocumentData::Created(
+                                        schema::data_point_event_data_document_data::Created {
+                                            value,
                                         },
-                                    )?
+                                    ) => {
+                                        transaction.create(
+                                            &data_point_document_path,
+                                            &DataPointDocumentData {
+                                                chart_id: data_point_id.chart_id().to_string(),
+                                                created_at: event.fields.at.clone(),
+                                                x_value: data_point_id.x_value().to_string(),
+                                                y_value: value,
+                                            },
+                                        )?;
+                                    }
+                                    DataPointEventDataDocumentData::Deleted(_) => {
+                                        transaction.delete(&data_point_document_path)?
+                                    }
+                                    DataPointEventDataDocumentData::Updated(
+                                        schema::data_point_event_data_document_data::Updated {
+                                            value,
+                                        },
+                                    ) => {
+                                        let document = transaction
+                                            .get::<DataPointDocumentData>(&data_point_document_path)
+                                            .await?
+                                            .ok_or("not found")?;
+                                        transaction.update(
+                                            &data_point_document_path,
+                                            &DataPointDocumentData {
+                                                chart_id: data_point_id.chart_id().to_string(),
+                                                created_at: document.fields.created_at,
+                                                x_value: data_point_id.x_value().to_string(),
+                                                y_value: value,
+                                            },
+                                        )?
+                                    }
                                 }
-                            },
-                            schema::EventDataDocumentData::DataPoint(_) => unreachable!(),
+                            }
                         }
 
                         match updater_metadata_document {
