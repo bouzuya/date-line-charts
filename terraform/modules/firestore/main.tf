@@ -1,7 +1,7 @@
 // <https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/firestore_database>
 resource "google_firestore_database" "default" {
   name            = "(default)"
-  location_id     = "nam5"
+  location_id     = "asia-northeast2"
   type            = "FIRESTORE_NATIVE"
   deletion_policy = "DELETE"
 }
