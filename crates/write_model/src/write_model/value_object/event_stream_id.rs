@@ -15,7 +15,10 @@ impl std::str::FromStr for EventStreamId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() <= 100 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        if s.len() <= 100
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == ':')
+        {
             Ok(Self(s.to_owned()))
         } else {
             Err(Error)
