@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.37.0"
+    }
+  }
+}
+
 // <https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/provider_reference>
 provider "google" {
   credentials = "../../credentials/dev.json"
