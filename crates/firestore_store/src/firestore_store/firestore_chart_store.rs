@@ -148,34 +148,39 @@ impl FirestoreChartStore {
 
                         let chart_id = ChartId::from_str(&event.fields.stream_id)?;
                         let chart_document_path = path::chart_document(chart_id);
-                        match serde_json::from_str::<ChartEventDataDocumentData>(
-                            &event.fields.data,
-                        )? {
-                            ChartEventDataDocumentData::Created(schema::Created { title }) => {
-                                transaction.create(
-                                    &chart_document_path,
-                                    &ChartDocumentData {
-                                        created_at: event.fields.at.clone(),
-                                        title,
-                                    },
-                                )?;
-                            }
-                            ChartEventDataDocumentData::Deleted(schema::Deleted {}) => {
-                                transaction.delete(&chart_document_path)?
-                            }
-                            ChartEventDataDocumentData::Updated(schema::Updated { title }) => {
-                                let document = transaction
-                                    .get::<ChartDocumentData>(&chart_document_path)
-                                    .await?
-                                    .ok_or("not found")?;
-                                transaction.update(
-                                    &chart_document_path,
-                                    &ChartDocumentData {
-                                        created_at: document.fields.created_at,
-                                        title,
-                                    },
-                                )?
-                            }
+                        match event.fields.data {
+                            schema::EventDataDocumentData::Chart(event_data) => match event_data {
+                                ChartEventDataDocumentData::Created(
+                                    schema::chart_event_data_document_data::Created { title },
+                                ) => {
+                                    transaction.create(
+                                        &chart_document_path,
+                                        &ChartDocumentData {
+                                            created_at: event.fields.at.clone(),
+                                            title,
+                                        },
+                                    )?;
+                                }
+                                ChartEventDataDocumentData::Deleted(
+                                    schema::chart_event_data_document_data::Deleted {},
+                                ) => transaction.delete(&chart_document_path)?,
+                                ChartEventDataDocumentData::Updated(
+                                    schema::chart_event_data_document_data::Updated { title },
+                                ) => {
+                                    let document = transaction
+                                        .get::<ChartDocumentData>(&chart_document_path)
+                                        .await?
+                                        .ok_or("not found")?;
+                                    transaction.update(
+                                        &chart_document_path,
+                                        &ChartDocumentData {
+                                            created_at: document.fields.created_at,
+                                            title,
+                                        },
+                                    )?
+                                }
+                            },
+                            schema::EventDataDocumentData::DataPoint(_) => unreachable!(),
                         }
 
                         match updater_metadata_document {

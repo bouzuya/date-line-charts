@@ -1,3 +1,9 @@
+pub(crate) mod chart_event_data_document_data;
+pub(crate) mod data_point_event_data_document_data;
+
+pub(crate) use chart_event_data_document_data::ChartEventDataDocumentData;
+pub(crate) use data_point_event_data_document_data::DataPointEventDataDocumentData;
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub(crate) struct ChartDocumentData {
     pub(crate) created_at: String,
@@ -22,31 +28,18 @@ pub(crate) struct EventStreamDocumentData {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub(crate) struct EventDocumentData {
     pub(crate) at: String,
-    pub(crate) data: String,
+    #[serde(flatten)]
+    pub(crate) data: EventDataDocumentData,
     pub(crate) id: String,
     pub(crate) stream_id: String,
     pub(crate) version: i64,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub(crate) enum ChartEventDataDocumentData {
-    Created(Created),
-    Deleted(Deleted),
-    Updated(Updated),
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Created {
-    pub(crate) title: String,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Deleted {}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Updated {
-    pub(crate) title: String,
+#[serde(rename_all = "snake_case", tag = "stream_type")]
+pub(crate) enum EventDataDocumentData {
+    Chart(ChartEventDataDocumentData),
+    DataPoint(DataPointEventDataDocumentData),
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -66,18 +59,24 @@ mod tests {
         assert_eq!(
             serde_json::to_value(EventDocumentData {
                 at: "2020-01-02T03:04:05.678Z".to_owned(),
-                data: serde_json::to_string(&ChartEventDataDocumentData::Created(Created {
-                    title: "title".to_owned(),
-                }))?,
+                data: EventDataDocumentData::Chart(ChartEventDataDocumentData::Created(
+                    chart_event_data_document_data::Created {
+                        title: "title".to_owned(),
+                    }
+                )),
                 id: "id".to_owned(),
                 stream_id: "stream_id".to_owned(),
                 version: 1,
             })?,
             serde_json::json!({
                 "at": "2020-01-02T03:04:05.678Z",
-                "data": r#"{"type":"created","title":"title"}"#,
+                "data": {
+                    "title":"title"
+                },
                 "id": "id",
                 "stream_id": "stream_id",
+                "stream_type": "chart",
+                "type": "created",
                 "version": 1,
             }),
         );
@@ -89,16 +88,20 @@ mod tests {
         assert_eq!(
             serde_json::to_value(EventDocumentData {
                 at: "2020-01-02T03:04:05.678Z".to_owned(),
-                data: serde_json::to_string(&ChartEventDataDocumentData::Deleted(Deleted {}))?,
+                data: EventDataDocumentData::Chart(ChartEventDataDocumentData::Deleted(
+                    chart_event_data_document_data::Deleted {}
+                )),
                 id: "id".to_owned(),
                 stream_id: "stream_id".to_owned(),
                 version: 1,
             })?,
             serde_json::json!({
                 "at": "2020-01-02T03:04:05.678Z",
-                "data": r#"{"type":"deleted"}"#,
+                "data": {},
                 "id": "id",
                 "stream_id": "stream_id",
+                "stream_type": "chart",
+                "type": "deleted",
                 "version": 1,
             }),
         );
@@ -110,18 +113,24 @@ mod tests {
         assert_eq!(
             serde_json::to_value(EventDocumentData {
                 at: "2020-01-02T03:04:05.678Z".to_owned(),
-                data: serde_json::to_string(&ChartEventDataDocumentData::Updated(Updated {
-                    title: "title".to_owned(),
-                }))?,
+                data: EventDataDocumentData::Chart(ChartEventDataDocumentData::Updated(
+                    chart_event_data_document_data::Updated {
+                        title: "title".to_owned(),
+                    }
+                )),
                 id: "id".to_owned(),
                 stream_id: "stream_id".to_owned(),
                 version: 1,
             })?,
             serde_json::json!({
                 "at": "2020-01-02T03:04:05.678Z",
-                "data": r#"{"type":"updated","title":"title"}"#,
+                "data": {
+                    "title": "title"
+                },
                 "id": "id",
                 "stream_id": "stream_id",
+                "stream_type": "chart",
+                "type": "updated",
                 "version": 1,
             }),
         );
