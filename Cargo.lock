@@ -484,6 +484,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tracing",
  "write_model",
 ]
 

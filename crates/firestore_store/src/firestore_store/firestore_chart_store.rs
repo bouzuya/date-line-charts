@@ -102,6 +102,7 @@ impl query_use_case::port::ChartReader for FirestoreChartStore {
 
 #[async_trait::async_trait]
 impl command_use_case::port::ChartRepository for FirestoreChartStore {
+    #[tracing::instrument(level = tracing::Level::DEBUG, err(Debug), ret, skip(self))]
     async fn find(
         &self,
         id: ChartId,
@@ -111,6 +112,7 @@ impl command_use_case::port::ChartRepository for FirestoreChartStore {
             .map_err(command_use_case::port::chart_repository::Error::from)
     }
 
+    #[tracing::instrument(level = tracing::Level::DEBUG, err(Debug), ret, skip(self))]
     async fn store(
         &self,
         current: Option<Version>,

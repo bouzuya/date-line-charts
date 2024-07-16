@@ -81,6 +81,7 @@ impl FirestoreDataPointStore {
 
 #[async_trait::async_trait]
 impl command_use_case::port::DataPointRepository for FirestoreDataPointStore {
+    #[tracing::instrument(level = tracing::Level::DEBUG, err(Debug), ret, skip(self))]
     async fn find(
         &self,
         id: DataPointId,
@@ -90,6 +91,7 @@ impl command_use_case::port::DataPointRepository for FirestoreDataPointStore {
             .map_err(command_use_case::port::data_point_repository::Error::from)
     }
 
+    #[tracing::instrument(level = tracing::Level::DEBUG, err(Debug), ret, skip(self))]
     async fn store(
         &self,
         current: Option<Version>,
