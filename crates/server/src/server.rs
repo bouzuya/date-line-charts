@@ -1,6 +1,8 @@
 mod app;
 mod handler;
 
+use std::{env, net::Ipv4Addr};
+
 use command_use_case::{
     create_chart::HasCreateChart, create_data_point::HasCreateDataPoint,
     delete_chart::HasDeleteChart, delete_data_point::HasDeleteDataPoint,
@@ -17,6 +19,8 @@ pub use self::app::App;
 pub enum Error {
     #[error("bind")]
     Bind(#[source] std::io::Error),
+    #[error("invalid port")]
+    InvalidPort(#[source] std::num::ParseIntError),
     #[error("serve")]
     Serve(#[source] std::io::Error),
 }
@@ -39,8 +43,12 @@ pub async fn run<
 >(
     app: T,
 ) -> Result<(), Error> {
+    let port = env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_owned())
+        .parse::<u16>()
+        .map_err(Error::InvalidPort)?;
     let router = handler::router().with_state(app);
-    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let tcp_listener = tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port))
         .await
         .map_err(Error::Bind)?;
     tracing::info!("server listening on port 3000");
