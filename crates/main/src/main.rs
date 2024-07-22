@@ -1,5 +1,4 @@
-use tracing::Level;
-use tracing_subscriber::{filter::Targets, layer::SubscriberExt, util::SubscriberInitExt as _};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt as _};
 
 mod subcommand;
 
@@ -18,11 +17,7 @@ enum Subcommand {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(
-            Targets::new()
-                .with_target("server", Level::INFO)
-                .with_target("command_use_case", Level::INFO),
-        )
+        .with(tracing_subscriber::EnvFilter::from_default_env())
         .init();
     let args = <Args as clap::Parser>::parse();
     match args.subcommand {
