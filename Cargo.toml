@@ -15,6 +15,6 @@ query_use_case = { path = "crates/query_use_case" }
 serde = { version = "1.0.203", features = ["derive"] }
 server = { path = "crates/server" }
 thiserror = "1.0.61"
-tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.39.2", features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1.40", features = ["log"] }
 write_model = { path = "crates/write_model" }
