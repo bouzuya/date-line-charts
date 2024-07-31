@@ -12,7 +12,7 @@ google-cloud-auth = { version = "0.15.0", default-features = false, features = [
   "rustls-tls",
 ] }
 google-cloud-token = "0.1.2"
-prost = "0.12.6"
+prost = "0.13.1"
 prost-types = "0.12.6"
 serde = { version = "1.0.203", features = ["derive"] }
 serde-firestore-value = "0.8.1"
